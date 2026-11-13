@@ -1,0 +1,267 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "key": "climate",
+      "label_ja": "温熱環境"
+    },
+    {
+      "key": "sanitation",
+      "label_ja": "衛生"
+    },
+    {
+      "key": "power",
+      "label_ja": "電源"
+    },
+    {
+      "key": "accessibility",
+      "label_ja": "バリアフリー"
+    },
+    {
+      "key": "comms",
+      "label_ja": "通信"
+    },
+    {
+      "key": "supplies",
+      "label_ja": "備蓄・物資"
+    },
+    {
+      "key": "pets",
+      "label_ja": "ペット"
+    },
+    {
+      "key": "capacity",
+      "label_ja": "収容"
+    }
+  ],
+  "enum_labels_ja": {
+    "none": "なし",
+    "spot_only": "スポットのみ",
+    "partial": "一部",
+    "full": "全体",
+    "shower": "シャワー",
+    "bath": "浴室",
+    "lighting_only": "照明のみ",
+    "sufficient": "十分",
+    "no": "不可",
+    "outdoor_only": "屋外のみ",
+    "same_room": "同室可"
+  },
+  "amenities": [
+    {
+      "key": "aircon_main_hall",
+      "label_ja": "主要滞在スペースの冷房",
+      "category": "climate",
+      "value_type": "enum",
+      "enum_options": [
+        "none",
+        "spot_only",
+        "partial",
+        "full"
+      ],
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "heating_main_hall",
+      "label_ja": "主要滞在スペースの暖房",
+      "category": "climate",
+      "value_type": "enum",
+      "enum_options": [
+        "none",
+        "spot_only",
+        "partial",
+        "full"
+      ],
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "insulation",
+      "label_ja": "断熱改修",
+      "category": "climate",
+      "value_type": "boolean",
+      "enum_options": null,
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "toilet_total",
+      "label_ja": "トイレ総数",
+      "category": "sanitation",
+      "value_type": "integer",
+      "enum_options": null,
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "toilet_western_ratio",
+      "label_ja": "洋式化率（%）",
+      "category": "sanitation",
+      "value_type": "integer",
+      "enum_options": null,
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "toilet_multipurpose",
+      "label_ja": "多目的トイレ",
+      "category": "sanitation",
+      "value_type": "boolean",
+      "enum_options": null,
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "shower",
+      "label_ja": "入浴・シャワー設備",
+      "category": "sanitation",
+      "value_type": "enum",
+      "enum_options": [
+        "none",
+        "shower",
+        "bath"
+      ],
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "water_supply",
+      "label_ja": "給水設備・受水槽",
+      "category": "sanitation",
+      "value_type": "boolean",
+      "enum_options": null,
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "power_backup",
+      "label_ja": "非常用発電機",
+      "category": "power",
+      "value_type": "enum",
+      "enum_options": [
+        "none",
+        "lighting_only",
+        "full"
+      ],
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "power_duration_h",
+      "label_ja": "自立運転可能時間",
+      "category": "power",
+      "value_type": "integer",
+      "enum_options": null,
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "solar_battery",
+      "label_ja": "太陽光＋蓄電池",
+      "category": "power",
+      "value_type": "boolean",
+      "enum_options": null,
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "elevator",
+      "label_ja": "エレベーター",
+      "category": "accessibility",
+      "value_type": "boolean",
+      "enum_options": null,
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "step_free_entry",
+      "label_ja": "段差のない入口",
+      "category": "accessibility",
+      "value_type": "boolean",
+      "enum_options": null,
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "wifi",
+      "label_ja": "災害時開放Wi-Fi",
+      "category": "comms",
+      "value_type": "boolean",
+      "enum_options": null,
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "stockpile_onsite",
+      "label_ja": "敷地内備蓄倉庫",
+      "category": "supplies",
+      "value_type": "boolean",
+      "enum_options": null,
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "stockpile_days",
+      "label_ja": "備蓄想定日数",
+      "category": "supplies",
+      "value_type": "integer",
+      "enum_options": null,
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "partition_kit",
+      "label_ja": "パーティション・簡易ベッド",
+      "category": "supplies",
+      "value_type": "enum",
+      "enum_options": [
+        "none",
+        "partial",
+        "sufficient"
+      ],
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "kitchen",
+      "label_ja": "炊き出し可能な調理設備",
+      "category": "supplies",
+      "value_type": "boolean",
+      "enum_options": null,
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "pet_accepted",
+      "label_ja": "ペット同行受入",
+      "category": "pets",
+      "value_type": "enum",
+      "enum_options": [
+        "no",
+        "outdoor_only",
+        "same_room"
+      ],
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "capacity_persons",
+      "label_ja": "想定収容人数",
+      "category": "capacity",
+      "value_type": "integer",
+      "enum_options": null,
+      "weight": 1,
+      "help_text": ""
+    },
+    {
+      "key": "capacity_area_sqm",
+      "label_ja": "滞在スペースの有効面積（㎡）",
+      "category": "capacity",
+      "value_type": "integer",
+      "enum_options": null,
+      "weight": 1,
+      "help_text": ""
+    }
+  ]
+}
