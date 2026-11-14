@@ -8,7 +8,7 @@ export function StateMark({ state, restrictedOnly = false }: { state: DisplaySta
   return (
     <span
       aria-hidden="true"
-      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[12px] font-bold leading-none"
+      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[14px] font-bold leading-none"
       style={
         restrictedOnly
           ? { background: '#fff', color, border: `2px solid ${color}` }

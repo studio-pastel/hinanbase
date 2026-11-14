@@ -10,7 +10,7 @@ const inputClass = 'w-full rounded border border-line bg-white px-2 py-1.5'
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-bold">{label}</span>
+      <span className="mb-1 block text-base font-bold">{label}</span>
       {children}
     </label>
   )
@@ -42,7 +42,7 @@ export function RemovalRequestPage() {
   return (
     <div className="mx-auto w-full max-w-2xl space-y-4 px-4 py-5">
       <h1 className="m-0 text-2xl font-bold">{t.title}</h1>
-      <p className="m-0 text-sm text-ink-soft">{t.intro}</p>
+      <p className="m-0 text-base text-ink-soft">{t.intro}</p>
       {!supabase ? (
         <p role="alert">{ja.auth.unavailable}</p>
       ) : s.state === 'done' ? (
@@ -59,7 +59,7 @@ export function RemovalRequestPage() {
           <Field label={t.relation}><input required maxLength={200} value={f.relation} onChange={set('relation')} className={inputClass} /></Field>
           <Field label={t.facilityId}><input maxLength={40} value={f.facility} onChange={set('facility')} className={inputClass} /></Field>
           <Field label={t.body}><textarea required minLength={10} maxLength={4000} rows={6} value={f.body} onChange={set('body')} className={inputClass} /></Field>
-          {s.error && <p role="alert" className="m-0 text-sm font-bold">{s.error}</p>}
+          {s.error && <p role="alert" className="m-0 text-base font-bold">{s.error}</p>}
           <button type="submit" disabled={s.state === 'sending'} className="rounded bg-ink px-4 py-2 font-bold text-white disabled:opacity-60">{t.submit}</button>
         </form>
       )}
@@ -75,7 +75,7 @@ export function FacilityAdminApplyPage() {
   return (
     <div className="mx-auto w-full max-w-2xl space-y-4 px-4 py-5">
       <h1 className="m-0 text-2xl font-bold">{t.title}</h1>
-      <p className="m-0 text-sm text-ink-soft">{t.intro}</p>
+      <p className="m-0 text-base text-ink-soft">{t.intro}</p>
       <RequireSignIn>
         {s.state === 'done' ? (
           <p role="status" className="rounded border border-line bg-surface p-4">{t.done}</p>
@@ -90,7 +90,7 @@ export function FacilityAdminApplyPage() {
             <Field label={t.organization}><input required maxLength={200} value={f.organization} onChange={set('organization')} autoComplete="organization" className={inputClass} /></Field>
             <Field label={t.email}><input required type="email" maxLength={320} value={f.email} onChange={set('email')} autoComplete="email" className={inputClass} /></Field>
             <Field label={t.note}><textarea maxLength={1000} rows={3} value={f.note} onChange={set('note')} className={inputClass} /></Field>
-            {s.error && <p role="alert" className="m-0 text-sm font-bold">{s.error}</p>}
+            {s.error && <p role="alert" className="m-0 text-base font-bold">{s.error}</p>}
             <button type="submit" disabled={s.state === 'sending'} className="rounded bg-ink px-4 py-2 font-bold text-white disabled:opacity-60">{t.submit}</button>
           </form>
         )}

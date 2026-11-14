@@ -15,25 +15,48 @@
   --font-sans: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic UI', Meiryo, system-ui, sans-serif;
 }
 
-html, body, #root { height: 100%; }
-body {
-  margin: 0;
-  background: var(--color-paper);
-  color: var(--color-ink);
-  font-family: var(--font-sans);
-  line-height: 1.7;
-  -webkit-text-size-adjust: 100%;
-}
-a { color: var(--color-accent); text-underline-offset: 3px; }
-a:hover { text-decoration-thickness: 2px; }
-:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
-
 /* 未評価の軸：0点に見えないよう、空のバーではなく斜線の帯にする */
 .axis-unrated {
   background: repeating-linear-gradient(135deg, #e4e2da 0 6px, #f2f0ea 6px 12px);
 }
 
-.maplibregl-ctrl-attrib { font-size: 11px; }
 /* 狭い画面でも出典が切れずに折り返されるようにする */
 .maplibregl-ctrl-bottom-right { max-width: 100%; }
 .maplibregl-ctrl-attrib.maplibregl-ctrl { max-width: 100%; white-space: normal; }
+
+/* 地図の拡大・縮小・現在地のボタンも押しやすい大きさにする */
+.maplibregl-ctrl-group button { width: 44px; height: 44px; }
+.maplibregl-ctrl-attrib { font-size: 12px; }
+
+/* 要素そのものへの指定は base レイヤーに置く。ユーティリティ（text-white など）で上書きできるようにするため */
+@layer base {
+  /* 文字は大きめを基準にする（スマホでの読みやすさを優先）。利用者がブラウザで文字を拡大しても崩れないよう rem で持つ */
+  html { font-size: 106.25%; }
+  html, body, #root { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    line-height: 1.7;
+    -webkit-text-size-adjust: 100%;
+  }
+  a { color: var(--color-accent); text-underline-offset: 3px; }
+  a:hover { text-decoration-thickness: 2px; }
+  :focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
+
+  /* 入力欄・ボタンは、指で押しやすい大きさ（44px 以上）にする */
+  select,
+  textarea,
+  input:not([type='checkbox']):not([type='radio']):not([type='file']) {
+    font-size: 1rem;
+    min-height: 2.75rem;
+  }
+  button, [role='tab'] { min-height: 2.75rem; font-size: 1rem; }
+  input[type='checkbox'], input[type='radio'] { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
+  input[type='file'] { font-size: 1rem; max-width: 100%; }
+  label { cursor: pointer; }
+
+  /* 長い施設名や URL で画面が横にはみ出さないようにする */
+  body { overflow-wrap: anywhere; }
+}

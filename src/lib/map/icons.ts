@@ -42,7 +42,7 @@ function toImage(c: HTMLCanvasElement, ctx: CanvasRenderingContext2D): IconImage
 
 /** 施設1件の印。restrictedOnly は白抜き（受入対象者が限定された避難所） */
 export function markerIcon(state: DisplayState, restrictedOnly: boolean): IconImage {
-  const size = 24
+  const size = 30
   const { c, ctx } = canvas(size, size)
   const color = STATE_COLORS[state]
   ctx.beginPath()
@@ -53,7 +53,7 @@ export function markerIcon(state: DisplayState, restrictedOnly: boolean): IconIm
   ctx.strokeStyle = restrictedOnly ? color : '#ffffff'
   ctx.stroke()
   ctx.fillStyle = restrictedOnly ? color : '#ffffff'
-  ctx.font = `700 13px ${FONT}`
+  ctx.font = `700 16px ${FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(STATE_SYMBOLS[state], size / 2, size / 2 + 0.5)
@@ -62,7 +62,7 @@ export function markerIcon(state: DisplayState, restrictedOnly: boolean): IconIm
 
 /** 選択中の施設を囲む輪 */
 export function selectedIcon(): IconImage {
-  const size = 34
+  const size = 42
   const { c, ctx } = canvas(size, size)
   ctx.beginPath()
   ctx.arc(size / 2, size / 2, size / 2 - 3, 0, Math.PI * 2)
@@ -74,10 +74,10 @@ export function selectedIcon(): IconImage {
 
 /** まとめ表示の印。label は件数（空文字のときは件数なし） */
 export function clusterIcon(label: string): IconImage {
-  const h = 28
+  const h = 34
   const probe = document.createElement('canvas').getContext('2d')!
-  probe.font = `700 12px ${FONT}`
-  const w = Math.max(h, Math.ceil(probe.measureText(label).width) + 16)
+  probe.font = `700 14px ${FONT}`
+  const w = Math.max(h, Math.ceil(probe.measureText(label).width) + 20)
   const { c, ctx } = canvas(w, h)
   ctx.beginPath()
   ctx.roundRect(1.5, 1.5, w - 3, h - 3, (h - 3) / 2)
@@ -87,7 +87,7 @@ export function clusterIcon(label: string): IconImage {
   ctx.strokeStyle = '#ffffff'
   ctx.stroke()
   ctx.fillStyle = '#ffffff'
-  ctx.font = `700 12px ${FONT}`
+  ctx.font = `700 14px ${FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(label === '' ? '…' : label, w / 2, h / 2 + 0.5)

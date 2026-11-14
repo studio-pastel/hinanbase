@@ -34,7 +34,7 @@ export function DisputeForm({ facilityId, def, onClose }: { facilityId: string; 
   }
 
   return (
-    <div className="mt-2 rounded border-2 border-ink bg-paper p-3 text-sm">
+    <div className="mt-2 rounded border-2 border-ink bg-paper p-3 text-base">
       <p className="m-0 font-bold">{ja.community.dispute.title(def.label_ja)}</p>
       {state === 'done' ? (
         <p role="status" className="m-0 mt-2">{ja.community.dispute.done}</p>
@@ -45,7 +45,7 @@ export function DisputeForm({ facilityId, def, onClose }: { facilityId: string; 
         </div>
       ) : (
         <form className="mt-2 space-y-2" onSubmit={(e) => { e.preventDefault(); void submit() }}>
-          <p className="m-0 text-xs text-ink-soft">{ja.community.dispute.intro}</p>
+          <p className="m-0 text-sm text-ink-soft">{ja.community.dispute.intro}</p>
           <label className="block">
             <span className="mb-1 block font-bold">{ja.community.dispute.reasonLabel}</span>
             <textarea required minLength={5} maxLength={1000} rows={2} value={reason} onChange={(e) => setReason(e.target.value)}
@@ -77,27 +77,27 @@ export function DisputeForm({ facilityId, def, onClose }: { facilityId: string; 
 export function History({ facilityId }: { facilityId: string }) {
   const history = useFacilityHistory(facilityId)
   if (!history.data) {
-    return history.isError ? <p className="text-sm text-ink-soft">{ja.community.liveError}</p> : null
+    return history.isError ? <p className="text-base text-ink-soft">{ja.community.liveError}</p> : null
   }
   const { reports, disputes } = history.data
   return (
     <section aria-labelledby="history-h">
-      <h2 id="history-h" className="m-0 text-lg font-bold">{ja.community.history.title}</h2>
-      <p className="m-0 mb-2 text-xs text-ink-soft">{ja.community.history.intro}</p>
+      <h2 id="history-h" className="m-0 text-xl font-bold">{ja.community.history.title}</h2>
+      <p className="m-0 mb-2 text-sm text-ink-soft">{ja.community.history.intro}</p>
       {reports.length === 0 && disputes.length === 0 && (
-        <p className="m-0 rounded border border-line bg-surface p-3 text-sm">{ja.community.history.empty}</p>
+        <p className="m-0 rounded border border-line bg-surface p-3 text-base">{ja.community.history.empty}</p>
       )}
       {reports.length > 0 && (
-        <ol className="m-0 list-none space-y-2 p-0 text-sm">
+        <ol className="m-0 list-none space-y-2 p-0 text-base">
           {reports.map((r) => {
             const def = amenityByKey.get(r.amenity_key)
             return (
               <li key={r.id} className="rounded border border-line bg-surface p-3">
                 <div className="flex flex-wrap items-baseline gap-x-3">
                   <strong>{def?.label_ja ?? r.amenity_key}：{formatValue(def, r.value)}</strong>
-                  <span className="rounded border border-line px-1.5 text-xs">{ja.community.status[r.status]}</span>
+                  <span className="rounded border border-line px-1.5 text-sm">{ja.community.status[r.status]}</span>
                 </div>
-                <div className="text-xs text-ink-soft">
+                <div className="text-sm text-ink-soft">
                   {dateOf(r.created_at)}・{ja.community.basis[r.basis]}・{ja.community.observedAt} {r.observed_at}・
                   {ja.community.history.reporter} {ja.community.reporterRole[r.reporter_role]} #{r.reporter_tag}
                 </div>
@@ -122,17 +122,17 @@ export function History({ facilityId }: { facilityId: string }) {
       )}
       {disputes.length > 0 && (
         <>
-          <h3 className="mb-1 mt-4 text-base font-bold">{ja.community.history.disputes}</h3>
-          <ol className="m-0 list-none space-y-2 p-0 text-sm">
+          <h3 className="mb-1 mt-4 text-lg font-bold">{ja.community.history.disputes}</h3>
+          <ol className="m-0 list-none space-y-2 p-0 text-base">
             {disputes.map((d) => {
               const def = amenityByKey.get(d.amenity_key)
               return (
                 <li key={d.id} className="rounded border border-line bg-surface p-3">
                   <strong>{def?.label_ja ?? d.amenity_key}</strong>{' '}
-                  <span className="rounded border border-line px-1.5 text-xs">
+                  <span className="rounded border border-line px-1.5 text-sm">
                     {d.status === 'open' ? ja.community.dispute.open : ja.community.dispute[d.status]}
                   </span>
-                  <div className="text-xs text-ink-soft">{dateOf(d.created_at)}・#{d.raiser_tag}</div>
+                  <div className="text-sm text-ink-soft">{dateOf(d.created_at)}・#{d.raiser_tag}</div>
                   <p className="m-0 mt-1">
                     {ja.community.dispute.counterValue}：{d.counter_value === null ? ja.community.dispute.noCounter : formatValue(def, d.counter_value)}
                   </p>

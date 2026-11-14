@@ -31,7 +31,7 @@ function Inner() {
       <div role="tablist" aria-label={t.title} className="flex flex-wrap gap-1 border-b border-line">
         {TABS.map((k) => (
           <button key={k} role="tab" type="button" aria-selected={tab === k} onClick={() => setTab(k)}
-            className={tab === k ? 'rounded-t border border-b-0 border-line bg-surface px-3 py-1.5 text-sm font-bold' : 'px-3 py-1.5 text-sm'}>
+            className={tab === k ? 'rounded-t border border-b-0 border-line bg-surface px-3 py-1.5 text-base font-bold' : 'px-3 py-1.5 text-base'}>
             {t.tabs[k]}
           </button>
         ))}
@@ -109,14 +109,14 @@ function ReportItem({ r }: { r: ReportRow }) {
   const [reason, setReason] = useState('')
   const def = amenityByKey.get(r.amenity_key)
   return (
-    <li className="rounded border border-line bg-surface p-3 text-sm">
+    <li className="rounded border border-line bg-surface p-3 text-base">
       <FacilityLink muniKey={r.muni_key} facilityId={r.facility_id} name={r.facility_name} />
       <div className="mt-1">
         <strong>{def?.label_ja ?? r.amenity_key}</strong>
         <span className="mx-3">{t.proposed}：<strong>{formatValue(def, r.value)}</strong></span>
         {t.currentValue}：{r.current_value === null ? t.noCurrent : `${formatValue(def, r.current_value)}（${r.current_confidence}）`}
       </div>
-      <div className="text-xs text-ink-soft">
+      <div className="text-sm text-ink-soft">
         {jstDate(r.created_at)}・{ja.community.basis[r.basis]}・{ja.community.observedAt} {r.observed_at}・#{r.reporter_tag}
       </div>
       {r.note && <p className="m-0 mt-1">{r.note}</p>}
@@ -130,7 +130,7 @@ function ReportItem({ r }: { r: ReportRow }) {
         <button type="button" disabled={a.busy} className="rounded bg-ink px-3 py-1.5 font-bold text-white disabled:opacity-60"
           onClick={() => void a.run('review_report', { p_report_id: r.id, p_decision: 'accept' })}>{t.accept}</button>
         <label className="flex-1">
-          <span className="block text-xs">{t.rejectReason}</span>
+          <span className="block text-sm">{t.rejectReason}</span>
           <input value={reason} onChange={(e) => setReason(e.target.value)} className="w-full rounded border border-line bg-white px-2 py-1.5" />
         </label>
         <button type="button" disabled={a.busy} className="rounded border border-ink px-3 py-1.5 font-bold disabled:opacity-60"
@@ -159,24 +159,24 @@ function DisputeItem({ d }: { d: DisputeRow }) {
   const act = (decision: 'resolved' | 'dismissed') =>
     void a.run('resolve_dispute', { p_dispute_id: d.id, p_decision: decision, p_note: note, p_withdraw_value: decision === 'resolved' && withdraw })
   return (
-    <li className="rounded border border-line bg-surface p-3 text-sm">
+    <li className="rounded border border-line bg-surface p-3 text-base">
       <FacilityLink muniKey={d.muni_key} facilityId={d.facility_id} name={d.facility_name} />
       <div className="mt-1"><strong>{def?.label_ja ?? d.amenity_key}</strong></div>
       <div className="mt-1 grid grid-cols-2 gap-2">
         <div className="rounded border border-line p-2">
-          <div className="text-xs text-ink-soft">{ja.community.dispute.currentValue}</div>
+          <div className="text-sm text-ink-soft">{ja.community.dispute.currentValue}</div>
           <strong>{formatValue(def, d.current_value)}</strong>
         </div>
         <div className="rounded border border-line p-2">
-          <div className="text-xs text-ink-soft">{ja.community.dispute.counterValue}</div>
+          <div className="text-sm text-ink-soft">{ja.community.dispute.counterValue}</div>
           <strong>{d.counter_value === null ? ja.community.dispute.noCounter : formatValue(def, d.counter_value)}</strong>
         </div>
       </div>
       <p className="m-0 mt-2">{d.reason}</p>
       {d.evidence_url && <p className="m-0 mt-1 break-all"><a href={d.evidence_url} target="_blank" rel="noopener noreferrer nofollow">{d.evidence_url}</a></p>}
-      <div className="text-xs text-ink-soft">{jstDate(d.created_at)}・#{d.raiser_tag}</div>
+      <div className="text-sm text-ink-soft">{jstDate(d.created_at)}・#{d.raiser_tag}</div>
       <label className="mt-2 block">
-        <span className="block text-xs">{t.note}</span>
+        <span className="block text-sm">{t.note}</span>
         <input value={note} onChange={(e) => setNote(e.target.value)} className="w-full rounded border border-line bg-white px-2 py-1.5" />
       </label>
       <label className="mt-2 flex items-center gap-2">
@@ -201,13 +201,13 @@ function ApplicationItem({ r }: { r: ApplicationRow }) {
   const a = useAction('applications')
   const [note, setNote] = useState('')
   return (
-    <li className="rounded border border-line bg-surface p-3 text-sm">
+    <li className="rounded border border-line bg-surface p-3 text-base">
       <strong>{r.organization}</strong>（{ja.community.admin.muni}：{r.muni_key}）
       <div>{r.contact_email}</div>
       {r.note && <p className="m-0 mt-1">{r.note}</p>}
-      <div className="text-xs text-ink-soft">{jstDate(r.created_at)}</div>
+      <div className="text-sm text-ink-soft">{jstDate(r.created_at)}</div>
       <label className="mt-2 block">
-        <span className="block text-xs">{t.reviewNote}</span>
+        <span className="block text-sm">{t.reviewNote}</span>
         <input value={note} onChange={(e) => setNote(e.target.value)} className="w-full rounded border border-line bg-white px-2 py-1.5" />
       </label>
       <div className="mt-2 flex gap-2">
@@ -231,14 +231,14 @@ function RemovalItem({ r }: { r: RemovalRow }) {
   const a = useAction('removals')
   const [note, setNote] = useState('')
   return (
-    <li className="rounded border border-line bg-surface p-3 text-sm">
+    <li className="rounded border border-line bg-surface p-3 text-base">
       <strong>{r.requester_name}</strong>（{r.relation}）
       <div>{r.contact}</div>
-      {r.facility_id && <div className="text-xs text-ink-soft">{ja.kind.sourceIdLabel}：{r.facility_id}</div>}
+      {r.facility_id && <div className="text-sm text-ink-soft">{ja.kind.sourceIdLabel}：{r.facility_id}</div>}
       <p className="m-0 mt-1 whitespace-pre-wrap">{r.body}</p>
-      <div className="text-xs text-ink-soft">{jstDate(r.created_at)}</div>
+      <div className="text-sm text-ink-soft">{jstDate(r.created_at)}</div>
       <label className="mt-2 block">
-        <span className="block text-xs">{t.handlingNote}</span>
+        <span className="block text-sm">{t.handlingNote}</span>
         <input value={note} onChange={(e) => setNote(e.target.value)} className="w-full rounded border border-line bg-white px-2 py-1.5" />
       </label>
       <button type="button" disabled={a.busy} className="mt-2 rounded bg-ink px-3 py-1.5 font-bold text-white disabled:opacity-60"
@@ -255,7 +255,7 @@ function Reporters() {
   if (q.isError) return <p role="alert">{ja.loadError}</p>
   if (!q.data || q.data.length === 0) return <p>{t.empty}</p>
   return (
-    <table className="w-full border-collapse text-sm">
+    <table className="w-full border-collapse text-base">
       <thead>
         <tr className="border-b border-line text-left">
           <th className="py-1">{ja.community.history.reporter}</th><th>{t.processed}</th><th>{t.rejected}</th><th>{t.rate}</th><th></th>

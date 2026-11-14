@@ -9,12 +9,12 @@ export function SignInButton({ className }: { className?: string }) {
     <span>
       <button
         type="button"
-        className={className ?? 'rounded border border-ink bg-ink px-4 py-2 text-sm font-bold text-white'}
+        className={className ?? 'rounded border border-ink bg-ink px-4 py-2 text-base font-bold text-white'}
         onClick={() => { setFailed(false); signIn().catch(() => setFailed(true)) }}
       >
         {ja.auth.signInGoogle}
       </button>
-      {failed && <span role="alert" className="ml-2 text-sm">{ja.auth.failed}</span>}
+      {failed && <span role="alert" className="ml-2 text-base">{ja.auth.failed}</span>}
     </span>
   )
 }

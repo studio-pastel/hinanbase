@@ -20,7 +20,7 @@ export function ReportPage() {
   const facility = muni.data?.facilities.find((f) => f.id === facilityId)
   return (
     <div className="mx-auto w-full max-w-2xl space-y-5 px-4 py-5">
-      <p className="m-0 text-sm">
+      <p className="m-0 text-base">
         <Link to="/f/$muniKey/$facilityId" params={{ muniKey, facilityId }}>‹ {ja.community.report.backToFacility}</Link>
       </p>
       <h1 className="m-0 text-2xl font-bold">{ja.community.report.title}</h1>
@@ -67,9 +67,9 @@ function ReportSteps({
   if (!def) {
     return (
       <section aria-live="polite" className="rounded border border-line bg-surface p-4">
-        <h2 className="m-0 text-lg font-bold">{ja.community.report.doneTitle}</h2>
+        <h2 className="m-0 text-xl font-bold">{ja.community.report.doneTitle}</h2>
         <p>{ja.community.report.doneSummary(results.length)}</p>
-        <p className="text-sm text-ink-soft">{ja.community.mapDelay}</p>
+        <p className="text-base text-ink-soft">{ja.community.mapDelay}</p>
         <p className="m-0 flex flex-wrap gap-4">
           <Link to="/f/$muniKey/$facilityId" params={{ muniKey, facilityId }}>{ja.community.report.backToFacility}</Link>
           <button type="button" className="underline" onClick={() => go(0)}>{ja.community.report.restart}</button>
@@ -118,45 +118,45 @@ function ReportSteps({
 
   return (
     <div className="space-y-5">
-      <p className="m-0 text-sm text-ink-soft">{ja.community.report.intro}</p>
+      <p className="m-0 text-base text-ink-soft">{ja.community.report.intro}</p>
 
       <fieldset className="m-0 space-y-3 rounded border border-line bg-surface p-4">
         <legend className="px-1 font-bold">{ja.community.report.commonTitle}</legend>
         <div>
-          <span className="mb-1 block text-sm font-bold" id="basis-label">{ja.community.report.basisLabel}</span>
+          <span className="mb-1 block text-base font-bold" id="basis-label">{ja.community.report.basisLabel}</span>
           <div role="radiogroup" aria-labelledby="basis-label" className="flex flex-col gap-1.5">
             {bases.map((b) => (
-              <label key={b} className="flex items-center gap-2">
+              <label key={b} className="flex min-h-12 items-center gap-3 rounded border border-line bg-white px-3">
                 <input type="radio" name="basis" checked={basis === b} onChange={() => setBasis(b)} />
                 {ja.community.basis[b]}
               </label>
             ))}
           </div>
-          {!PHOTO_UPLOAD_ENABLED && <p className="m-0 mt-1 text-xs text-ink-soft">{ja.community.report.photoUnavailable}</p>}
+          {!PHOTO_UPLOAD_ENABLED && <p className="m-0 mt-1 text-sm text-ink-soft">{ja.community.report.photoUnavailable}</p>}
         </div>
         <label className="block">
-          <span className="mb-1 block text-sm font-bold">{ja.community.report.observedLabel}</span>
+          <span className="mb-1 block text-base font-bold">{ja.community.report.observedLabel}</span>
           <input type="date" required max={todayJst()} value={observedAt} onChange={(e) => setObservedAt(e.target.value)}
             className="rounded border border-line bg-white px-2 py-1.5" />
         </label>
         {(basis === 'official_doc' || sourceUrl !== '') && (
           <label className="block">
-            <span className="mb-1 block text-sm font-bold">{ja.community.report.sourceUrlLabel}</span>
+            <span className="mb-1 block text-base font-bold">{ja.community.report.sourceUrlLabel}</span>
             <input type="url" inputMode="url" placeholder="https://" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)}
               aria-describedby="source-help" className="w-full rounded border border-line bg-white px-2 py-1.5" />
-            <span id="source-help" className="mt-1 block text-xs text-ink-soft">{ja.community.report.sourceUrlHelp}</span>
+            <span id="source-help" className="mt-1 block text-sm text-ink-soft">{ja.community.report.sourceUrlHelp}</span>
           </label>
         )}
         {basis === 'photo' && PHOTO_UPLOAD_ENABLED && (
           <div>
             <label className="block">
-              <span className="mb-1 block text-sm font-bold">{ja.community.report.photoLabel}</span>
+              <span className="mb-1 block text-base font-bold">{ja.community.report.photoLabel}</span>
               <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={photoUrls.length >= 4 || photoState === 'uploading'}
                 aria-describedby="photo-help" onChange={(e) => { void addPhotos(e.target.files); e.target.value = '' }} />
             </label>
-            <p id="photo-help" className="m-0 mt-1 text-xs text-ink-soft">{ja.community.report.photoHelp}</p>
-            {photoState === 'uploading' && <p role="status" className="m-0 text-sm">{ja.community.report.photoUploading}</p>}
-            {photoState === 'failed' && <p role="alert" className="m-0 text-sm">{ja.community.report.photoFailed}</p>}
+            <p id="photo-help" className="m-0 mt-1 text-sm text-ink-soft">{ja.community.report.photoHelp}</p>
+            {photoState === 'uploading' && <p role="status" className="m-0 text-base">{ja.community.report.photoUploading}</p>}
+            {photoState === 'failed' && <p role="alert" className="m-0 text-base">{ja.community.report.photoFailed}</p>}
             {photoUrls.length > 0 && (
               <ul className="m-0 mt-2 flex list-none flex-wrap gap-2 p-0">
                 {photoUrls.map((u) => <li key={u}><img src={u} alt="" className="h-20 w-20 rounded border border-line object-cover" /></li>)}
@@ -167,38 +167,38 @@ function ReportSteps({
       </fieldset>
 
       {last && (
-        <p role="status" className="m-0 rounded border border-line bg-paper p-2 text-sm">
+        <p role="status" className="m-0 rounded border border-line bg-paper p-2 text-base">
           {last.status === 'accepted' ? ja.community.report.resultAccepted : ja.community.report.resultPending}
         </p>
       )}
 
       <form className="space-y-3 rounded border-2 border-ink bg-surface p-4" onSubmit={(e) => { e.preventDefault(); void submit() }}>
-        <p className="m-0 text-xs text-ink-soft">{ja.community.report.step(index + 1, items.length)}</p>
-        <h2 className="m-0 text-xl font-bold">{def.label_ja}</h2>
-        {def.help_text && <p className="m-0 text-sm text-ink-soft">{def.help_text}</p>}
-        <p className="m-0 text-sm">
+        <p className="m-0 text-sm text-ink-soft">{ja.community.report.step(index + 1, items.length)}</p>
+        <h2 className="m-0 text-2xl font-bold leading-snug">{def.label_ja}</h2>
+        {def.help_text && <p className="m-0 text-base text-ink-soft">{def.help_text}</p>}
+        <p className="m-0 text-base">
           {ja.community.report.current}：
           <strong>{current && current.confidence !== 'disputed' ? formatValue(def, current.value) : ja.facility.unknownValue}</strong>
         </p>
         <div>
-          <span className="mb-1 block text-sm font-bold">{ja.community.report.valueLabel}</span>
+          <span className="mb-1 block text-base font-bold">{ja.community.report.valueLabel}</span>
           <ValueInput def={def} value={value} onChange={setValue} name={`value-${def.key}`} />
         </div>
         <label className="block">
-          <span className="mb-1 block text-sm font-bold">{ja.community.report.noteLabel}</span>
+          <span className="mb-1 block text-base font-bold">{ja.community.report.noteLabel}</span>
           <textarea rows={2} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)}
             className="w-full rounded border border-line bg-white px-2 py-1.5" />
         </label>
-        {error && <p role="alert" className="m-0 text-sm font-bold">{error}</p>}
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="submit" disabled={sending} className="rounded bg-ink px-4 py-2 font-bold text-white disabled:opacity-60">
+        {error && <p role="alert" className="m-0 text-base font-bold">{error}</p>}
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <button type="submit" disabled={sending} className="min-h-12 rounded bg-ink px-5 text-lg font-bold text-white disabled:opacity-60">
             {sending ? ja.community.report.sending : ja.community.report.submit}
           </button>
-          <button type="button" disabled={sending} onClick={() => go(index + 1)} className="rounded border border-line px-4 py-2">
+          <button type="button" disabled={sending} onClick={() => go(index + 1)} className="min-h-12 rounded border border-ink px-5">
             {ja.community.report.skip}
           </button>
           {index > 0 && (
-            <button type="button" disabled={sending} onClick={() => go(index - 1)} className="px-2 py-2 text-sm underline">
+            <button type="button" disabled={sending} onClick={() => go(index - 1)} className="px-2 py-2 text-base underline">
               {ja.community.report.back}
             </button>
           )}

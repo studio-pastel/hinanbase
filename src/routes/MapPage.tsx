@@ -17,21 +17,21 @@ export function MapPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <section aria-label={ja.summary.label} className="flex flex-wrap items-baseline gap-x-6 gap-y-0.5 border-b border-line bg-surface px-4 py-1.5 text-sm">
+      <section aria-label={ja.summary.label} className="flex flex-wrap items-baseline gap-x-6 gap-y-0 border-b border-line bg-surface px-3 py-1.5 text-base leading-snug sm:px-4">
         {national.data ? (
           <>
             <p className="m-0">
               {ja.summary.facilities}{' '}
-              <strong className="text-base tabular-nums">{fmt.format(national.data.facility_count)}</strong> {ja.unitFacilities}
+              <strong className="text-lg tabular-nums">{fmt.format(national.data.facility_count)}</strong> {ja.unitFacilities}
             </p>
             <p className="m-0">
               {ja.summary.withAmenity}{' '}
-              <strong className="text-base tabular-nums">
+              <strong className="text-lg tabular-nums">
                 {fmt.format(national.data.amenity_coverage.facilities_with_any)}
               </strong>{' '}
               {ja.unitFacilities}（{pct(national.data.amenity_coverage.ratio)}）
             </p>
-            <p className="m-0 text-xs text-ink-soft">{ja.summary.withAmenityNote}</p>
+            <p className="m-0 hidden text-sm text-ink-soft sm:block">{ja.summary.withAmenityNote}</p>
           </>
         ) : (
           <p className="m-0 text-ink-soft" role={national.isError ? 'alert' : 'status'}>
@@ -41,7 +41,7 @@ export function MapPage() {
       </section>
 
       <div className="relative flex min-h-0 flex-1 flex-col">
-        <div className="relative min-h-[55vh] flex-1">
+        <div className="relative min-h-[62dvh] flex-1 md:min-h-0">
           <MapView
             mode="national"
             tilesUrl={tilesUrl}
@@ -58,7 +58,7 @@ export function MapPage() {
         <div className="z-10 max-h-[60vh] overflow-y-auto border-t border-line bg-surface md:absolute md:left-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-80 md:rounded md:border md:shadow-lg">
           <button
             type="button"
-            className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm font-bold"
+            className="flex w-full items-center justify-between px-4 text-left text-base font-bold"
             aria-expanded={panelOpen}
             aria-controls="filter-panel"
             onClick={() => setPanelOpen((v) => !v)}
@@ -74,15 +74,15 @@ export function MapPage() {
               onClick={() => setFilter({ ...filter, ac: filter.ac === 'none' ? 'all' : 'none' })}
               className={
                 filter.ac === 'none'
-                  ? 'w-full rounded border-2 border-ink bg-ink px-3 py-2 text-sm font-bold text-white'
-                  : 'w-full rounded border-2 border-ink bg-white px-3 py-2 text-sm font-bold'
+                  ? 'w-full rounded border-2 border-ink bg-ink px-3 py-2 text-base font-bold text-white'
+                  : 'w-full rounded border-2 border-ink bg-white px-3 py-2 text-base font-bold'
               }
             >
               {filter.ac === 'none' ? ja.map.acNoneOn : ja.map.acNone}
             </button>
-            {filter.ac === 'none' && <p className="m-0 mt-1 text-xs text-ink-soft">{ja.map.acNoneHelp}</p>}
+            {filter.ac === 'none' && <p className="m-0 mt-1 text-sm text-ink-soft">{ja.map.acNoneHelp}</p>}
           </div>
-          <div id="filter-panel" hidden={!panelOpen} className="space-y-4 px-4 pb-4 text-sm">
+          <div id="filter-panel" hidden={!panelOpen} className="space-y-4 px-4 pb-4 text-base">
             <FilterControls filter={filter} onChange={setFilter} />
             <Legend />
             <p className="m-0">
@@ -90,11 +90,11 @@ export function MapPage() {
             </p>
           </div>
           {isClusterCountUnavailable(filter) && (
-            <p role="status" className="m-0 mx-4 mb-2 rounded bg-paper p-2 text-xs">{ja.map.clusterCountUnavailable}</p>
+            <p role="status" className="m-0 mx-4 mb-2 rounded bg-paper p-2 text-sm">{ja.map.clusterCountUnavailable}</p>
           )}
           {/* 凡例は常時表示（SPEC §3.6）。パネルを閉じていても1行で出す */}
           {!panelOpen && (
-            <div className="flex flex-wrap gap-x-3 gap-y-1 px-4 pb-2 text-xs">
+            <div className="flex flex-wrap gap-x-3 gap-y-1 px-4 pb-2 text-sm">
               {DISPLAY_STATES.map((s) => <StateLabel key={s} state={s} />)}
             </div>
           )}
@@ -132,13 +132,13 @@ function FilterControls({ filter, onChange }: { filter: MapFilter; onChange: (f:
           <option value="all">{ja.hazard.all}</option>
           {HAZARD_KEYS.map((k) => <option key={k} value={k}>{ja.hazard.names[k]}</option>)}
         </select>
-        <span id="hazard-help" className="mt-1 block text-xs text-ink-soft">{ja.hazard.help}</span>
+        <span id="hazard-help" className="mt-1 block text-sm text-ink-soft">{ja.hazard.help}</span>
       </label>
       <fieldset className="m-0 border-0 p-0">
         <legend className="mb-1 font-bold">{ja.state.label}</legend>
-        <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+        <div className="grid grid-cols-1 gap-x-2 gap-y-2 min-[420px]:grid-cols-2 md:grid-cols-1">
           {DISPLAY_STATES.map((s) => (
-            <label key={s} className="flex items-center gap-1.5">
+            <label key={s} className="flex min-h-9 items-center gap-2">
               <input type="checkbox" checked={filter.states.includes(s)} onChange={() => toggleState(s)} />
               <StateLabel state={s} />
             </label>
@@ -152,8 +152,8 @@ function FilterControls({ filter, onChange }: { filter: MapFilter; onChange: (f:
 function Legend() {
   return (
     <section aria-label={ja.state.legend} className="border-t border-line pt-3">
-      <h2 className="m-0 mb-1 text-sm font-bold">{ja.state.legend}</h2>
-      <ul className="m-0 list-none space-y-1 p-0 text-xs">
+      <h2 className="m-0 mb-1 text-base font-bold">{ja.state.legend}</h2>
+      <ul className="m-0 list-none space-y-1 p-0 text-sm">
         {DISPLAY_STATES.map((s) => (
           <li key={s} className="flex gap-2">
             <StateMark state={s} />
@@ -163,7 +163,7 @@ function Legend() {
         <li className="flex gap-2"><StateMark state="unknown" restrictedOnly /><span>{ja.state.restrictedLegend}</span></li>
         <li>{ja.state.clusterLegend}</li>
       </ul>
-      <p className="m-0 mt-2 text-xs text-ink-soft">{ja.state.phase1Note}</p>
+      <p className="m-0 mt-2 text-sm text-ink-soft">{ja.state.phase1Note}</p>
     </section>
   )
 }
@@ -172,20 +172,20 @@ function SelectedCard({ feature, onClose }: { feature: MapFeature; onClose: () =
   return (
     <section
       aria-live="polite"
-      className="absolute left-3 right-3 top-3 z-20 rounded border border-line bg-surface p-3 shadow-lg md:left-auto md:right-14 md:w-80"
+      className="absolute left-2 right-16 top-2 z-20 rounded border border-line bg-surface p-3 shadow-lg md:left-auto md:right-16 md:top-3 md:w-96"
     >
       <div className="flex items-start gap-2">
-        <h2 className="m-0 flex-1 text-base font-bold leading-snug">{feature.name}</h2>
-        <button type="button" onClick={onClose} aria-label={ja.map.selectedClose} className="rounded px-2 text-lg leading-none hover:bg-paper">×</button>
+        <h2 className="m-0 flex-1 text-lg font-bold leading-snug">{feature.name}</h2>
+        <button type="button" onClick={onClose} aria-label={ja.map.selectedClose} className="rounded px-2 text-xl leading-none hover:bg-paper">×</button>
       </div>
-      <ul className="m-0 mt-1 flex list-none flex-wrap gap-1.5 p-0 text-xs">
+      <ul className="m-0 mt-1 flex list-none flex-wrap gap-1.5 p-0 text-sm">
         {feature.kind & KIND_EMERGENCY ? <li className="rounded border border-line px-1.5 py-0.5">{ja.kind.emergency}</li> : null}
         {feature.kind & KIND_SHELTER ? <li className="rounded border border-line px-1.5 py-0.5">{ja.kind.shelter}</li> : null}
         {feature.restrictedOnly && <li className="rounded border border-ink px-1.5 py-0.5 font-bold">{ja.kind.restrictedShort}</li>}
       </ul>
-      <p className="m-0 mt-2 text-sm"><StateLabel state={feature.state} restrictedOnly={feature.restrictedOnly} /></p>
-      <p className="m-0 mt-2 text-sm">
-        <Link to="/f/$muniKey/$facilityId" params={{ muniKey: feature.muni, facilityId: feature.id }}>
+      <p className="m-0 mt-2 text-base"><StateLabel state={feature.state} restrictedOnly={feature.restrictedOnly} /></p>
+      <p className="m-0 mt-2 text-base">
+        <Link to="/f/$muniKey/$facilityId" params={{ muniKey: feature.muni, facilityId: feature.id }} className="inline-flex min-h-11 items-center rounded bg-ink px-4 font-bold text-white no-underline">
           {ja.map.openDetail}
         </Link>
       </p>

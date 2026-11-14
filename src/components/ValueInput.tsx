@@ -17,7 +17,7 @@ export function ValueInput({
     return (
       <input
         type="number" inputMode="numeric" min={0} step={1} name={name}
-        className="w-40 rounded border border-line bg-white px-2 py-1.5"
+        className="w-48 rounded border border-line bg-white px-3 text-lg"
         value={value === null ? '' : String(value)}
         onChange={(e) => {
           const t = e.target.value.trim()
@@ -33,13 +33,13 @@ export function ValueInput({
   return (
     <div className="flex flex-wrap gap-2">
       {allowEmpty && (
-        <label className="flex items-center gap-1.5 rounded border border-line bg-white px-3 py-1.5">
+        <label className="flex min-h-12 items-center gap-2.5 rounded border border-line bg-white px-4">
           <input type="radio" name={name} checked={value === null} onChange={() => onChange(null)} />
           {allowEmpty}
         </label>
       )}
       {options.map((o) => (
-        <label key={String(o.v)} className="flex items-center gap-1.5 rounded border border-line bg-white px-3 py-1.5">
+        <label key={String(o.v)} className="flex min-h-12 items-center gap-2.5 rounded border border-line bg-white px-4 has-[:checked]:border-2 has-[:checked]:border-ink has-[:checked]:font-bold">
           <input type="radio" name={name} checked={value === o.v} onChange={() => onChange(o.v)} />
           {o.label}
         </label>
