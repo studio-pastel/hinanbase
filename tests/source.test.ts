@@ -42,6 +42,7 @@ describe('施設データの組み立て', () => {
     expect([s.hazard, s.capacity, s.habitability, s.logistics]).toEqual([null, null, null, null])
     expect(s.display_state).toBe('unknown')
     expect(s.breakdown.method_version).toBeTypeOf('string')
+    expect(s.coverage_ratio).toBe(0)
     expect(s).not.toHaveProperty('total')
   })
 

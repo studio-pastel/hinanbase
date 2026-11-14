@@ -20,7 +20,7 @@ export const ja = {
     label: '全国の概況',
     facilities: '掲載施設',
     withAmenity: '設備情報が1項目以上ある施設',
-    withAmenityNote: '公的データには設備の情報が含まれていません。',
+    withAmenityNote: '公的データには設備の情報が含まれていません。設備情報は投稿で集めています。',
   },
 
   kind: {
@@ -77,14 +77,17 @@ export const ja = {
     } satisfies Record<DisplayState, string>,
     restrictedLegend: '白抜きの印：受入対象者が限定された避難所',
     clusterLegend: '数字の印：その付近の施設数（拡大すると個別に表示）',
-    phase1Note: '現在はすべての施設が「未確認」です。設備情報がまだ1件も集まっていないためです。',
+    phase1Note: '設備情報が全項目の4割以上集まった施設から、色が付きます。それまでは「未確認」のままです。',
   },
 
   map: {
     label: '全国の避難所の地図',
     filters: '絞り込み',
     filtersClose: '絞り込みを閉じる',
-    clusterCountUnavailable: 'この組み合わせでは、まとめ表示の件数を出せません。拡大すると個別に表示されます。',
+    clusterCountUnavailable: '条件を2つ以上重ねているため、まとめ表示の件数を出せません。拡大すると個別に表示されます。',
+    acNone: '冷房なしだけを表示',
+    acNoneOn: '冷房なしだけを表示中（解除する）',
+    acNoneHelp: '主要な滞在スペースの冷房が「なし」と確認された施設だけを表示しています。冷房の情報がまだない施設は含みません。',
     listAlternative: '地図を使わずに一覧で探す',
     zoomIn: '拡大',
     zoomOut: '縮小',
@@ -102,7 +105,7 @@ export const ja = {
     mapLabel: '施設の位置',
     designations: '指定の内容',
     scores: '4軸の評価',
-    scoresNote: '総合点は作りません。評価に必要な情報が欠けている軸は「未評価」と表示します。',
+    scoresNote: '総合点は作りません。評価に必要な情報が欠けている軸は「未評価」と表示します。点数は1日1回の更新時に計算し直すため、直前の投稿はまだ反映されていないことがあります。',
     unrated: '未評価',
     axes: {
       hazard: 'ハザード適合性',

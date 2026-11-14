@@ -2,14 +2,14 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { HAZARD_KEYS } from '../shared/types.ts'
 import { BUILD_DIR, FACILITIES_NDJSON } from './lib/paths.ts'
+import { SUM_ATTRIBUTES } from './lib/tileProps.ts'
 
 /** この値以上のズームでは全施設を個別の点として持つ。フロントの地図もこの値を参照する */
 export const POINT_ZOOM = 12
 export const MIN_ZOOM = 4
 
-if (!existsSync(FACILITIES_NDJSON)) throw new Error('先に build-facilities を実行してください')
+if (!existsSync(FACILITIES_NDJSON)) throw new Error('先に rescore を実行してください')
 const outDir = join(BUILD_DIR, 'tiles')
 mkdirSync(outDir, { recursive: true })
 const out = join(outDir, 'shelters.pmtiles')
@@ -20,7 +20,7 @@ const out = join(outDir, 'shelters.pmtiles')
 //   --cluster-distance       近い点を1つにまとめ、point_count に件数を持たせる
 //   --cluster-maxzoom        POINT_ZOOM 未満だけでまとめる（POINT_ZOOM では全点が個別）
 //   --no-feature-limit / --no-tile-size-limit  タイルが大きくても点を捨てない
-const sums = ['ne', 'ns', ...HAZARD_KEYS.map((_, i) => `h${i}`)]
+const sums = SUM_ATTRIBUTES
 const args = [
   '-o', out, '--force', '-l', 'shelters', '-P', '--quiet',
   `-Z${MIN_ZOOM}`, `-z${POINT_ZOOM}`, '-r1', '-b0',

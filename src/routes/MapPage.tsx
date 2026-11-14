@@ -11,7 +11,7 @@ const tilesUrl = `${DATA_BASE_URL || window.location.origin}/tiles/shelters.pmti
 
 export function MapPage() {
   const national = useNational()
-  const [filter, setFilter] = useState<MapFilter>({ kind: 'all', hazard: 'all', states: [...DISPLAY_STATES] })
+  const [filter, setFilter] = useState<MapFilter>({ kind: 'all', hazard: 'all', states: [...DISPLAY_STATES], ac: 'all' })
   const [selected, setSelected] = useState<MapFeature | null>(null)
   const [panelOpen, setPanelOpen] = useState(() => window.matchMedia('(min-width: 768px)').matches)
 
@@ -66,6 +66,22 @@ export function MapPage() {
             <span>{ja.map.filters}・{ja.state.legend}</span>
             <span aria-hidden="true">{panelOpen ? '−' : '＋'}</span>
           </button>
+          {/* 「冷房なしだけを表示」はワンタップで（SPEC §6.1）。パネルを閉じていても押せる */}
+          <div className="px-4 pb-2">
+            <button
+              type="button"
+              aria-pressed={filter.ac === 'none'}
+              onClick={() => setFilter({ ...filter, ac: filter.ac === 'none' ? 'all' : 'none' })}
+              className={
+                filter.ac === 'none'
+                  ? 'w-full rounded border-2 border-ink bg-ink px-3 py-2 text-sm font-bold text-white'
+                  : 'w-full rounded border-2 border-ink bg-white px-3 py-2 text-sm font-bold'
+              }
+            >
+              {filter.ac === 'none' ? ja.map.acNoneOn : ja.map.acNone}
+            </button>
+            {filter.ac === 'none' && <p className="m-0 mt-1 text-xs text-ink-soft">{ja.map.acNoneHelp}</p>}
+          </div>
           <div id="filter-panel" hidden={!panelOpen} className="space-y-4 px-4 pb-4 text-sm">
             <FilterControls filter={filter} onChange={setFilter} />
             <Legend />
@@ -73,6 +89,9 @@ export function MapPage() {
               <Link to="/list">{ja.map.listAlternative}</Link>
             </p>
           </div>
+          {isClusterCountUnavailable(filter) && (
+            <p role="status" className="m-0 mx-4 mb-2 rounded bg-paper p-2 text-xs">{ja.map.clusterCountUnavailable}</p>
+          )}
           {/* 凡例は常時表示（SPEC §3.6）。パネルを閉じていても1行で出す */}
           {!panelOpen && (
             <div className="flex flex-wrap gap-x-3 gap-y-1 px-4 pb-2 text-xs">
@@ -115,9 +134,6 @@ function FilterControls({ filter, onChange }: { filter: MapFilter; onChange: (f:
         </select>
         <span id="hazard-help" className="mt-1 block text-xs text-ink-soft">{ja.hazard.help}</span>
       </label>
-      {isClusterCountUnavailable(filter) && (
-        <p role="status" className="m-0 rounded bg-paper p-2 text-xs">{ja.map.clusterCountUnavailable}</p>
-      )}
       <fieldset className="m-0 border-0 p-0">
         <legend className="mb-1 font-bold">{ja.state.label}</legend>
         <div className="grid grid-cols-2 gap-x-2 gap-y-1">

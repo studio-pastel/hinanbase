@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "categories": [
     {
       "key": "climate",
@@ -61,7 +61,16 @@
       ],
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 4
+      "onsite_rank": 4,
+      "habitability": {
+        "kind": "enum",
+        "scores": {
+          "none": 0,
+          "spot_only": 0.33,
+          "partial": 0.67,
+          "full": 1
+        }
+      }
     },
     {
       "key": "heating_main_hall",
@@ -76,7 +85,16 @@
       ],
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 5
+      "onsite_rank": 5,
+      "habitability": {
+        "kind": "enum",
+        "scores": {
+          "none": 0,
+          "spot_only": 0.33,
+          "partial": 0.67,
+          "full": 1
+        }
+      }
     },
     {
       "key": "insulation",
@@ -86,7 +104,10 @@
       "enum_options": null,
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 17
+      "onsite_rank": 17,
+      "habitability": {
+        "kind": "boolean"
+      }
     },
     {
       "key": "toilet_total",
@@ -96,7 +117,9 @@
       "enum_options": null,
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 15
+      "onsite_rank": 15,
+      "habitability": null,
+      "habitability_excluded_reason": "避難者数との比で見る項目（軸B）"
     },
     {
       "key": "toilet_western_ratio",
@@ -106,7 +129,11 @@
       "enum_options": null,
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 16
+      "onsite_rank": 16,
+      "habitability": {
+        "kind": "ratio",
+        "max": 100
+      }
     },
     {
       "key": "toilet_multipurpose",
@@ -116,7 +143,10 @@
       "enum_options": null,
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 3
+      "onsite_rank": 3,
+      "habitability": {
+        "kind": "boolean"
+      }
     },
     {
       "key": "shower",
@@ -130,7 +160,15 @@
       ],
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 7
+      "onsite_rank": 7,
+      "habitability": {
+        "kind": "enum",
+        "scores": {
+          "none": 0,
+          "shower": 0.5,
+          "bath": 1
+        }
+      }
     },
     {
       "key": "water_supply",
@@ -140,7 +178,10 @@
       "enum_options": null,
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 12
+      "onsite_rank": 12,
+      "habitability": {
+        "kind": "boolean"
+      }
     },
     {
       "key": "power_backup",
@@ -154,7 +195,15 @@
       ],
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 11
+      "onsite_rank": 11,
+      "habitability": {
+        "kind": "enum",
+        "scores": {
+          "none": 0,
+          "lighting_only": 0.5,
+          "full": 1
+        }
+      }
     },
     {
       "key": "power_duration_h",
@@ -164,7 +213,9 @@
       "enum_options": null,
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 18
+      "onsite_rank": 18,
+      "habitability": null,
+      "habitability_excluded_reason": "良し悪しを決める基準値が未定"
     },
     {
       "key": "solar_battery",
@@ -174,7 +225,10 @@
       "enum_options": null,
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 10
+      "onsite_rank": 10,
+      "habitability": {
+        "kind": "boolean"
+      }
     },
     {
       "key": "elevator",
@@ -184,7 +238,9 @@
       "enum_options": null,
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 2
+      "onsite_rank": 2,
+      "habitability": null,
+      "habitability_excluded_reason": "平屋の施設（体育館など）では不要なため、「なし」を減点にしない"
     },
     {
       "key": "step_free_entry",
@@ -194,7 +250,10 @@
       "enum_options": null,
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 1
+      "onsite_rank": 1,
+      "habitability": {
+        "kind": "boolean"
+      }
     },
     {
       "key": "wifi",
@@ -204,7 +263,10 @@
       "enum_options": null,
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 6
+      "onsite_rank": 6,
+      "habitability": {
+        "kind": "boolean"
+      }
     },
     {
       "key": "stockpile_onsite",
@@ -214,7 +276,10 @@
       "enum_options": null,
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 9
+      "onsite_rank": 9,
+      "habitability": {
+        "kind": "boolean"
+      }
     },
     {
       "key": "stockpile_days",
@@ -224,7 +289,9 @@
       "enum_options": null,
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 19
+      "onsite_rank": 19,
+      "habitability": null,
+      "habitability_excluded_reason": "良し悪しを決める基準値が未定"
     },
     {
       "key": "partition_kit",
@@ -238,7 +305,15 @@
       ],
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 14
+      "onsite_rank": 14,
+      "habitability": {
+        "kind": "enum",
+        "scores": {
+          "none": 0,
+          "partial": 0.5,
+          "sufficient": 1
+        }
+      }
     },
     {
       "key": "kitchen",
@@ -248,7 +323,10 @@
       "enum_options": null,
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 8
+      "onsite_rank": 8,
+      "habitability": {
+        "kind": "boolean"
+      }
     },
     {
       "key": "pet_accepted",
@@ -262,7 +340,15 @@
       ],
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 13
+      "onsite_rank": 13,
+      "habitability": {
+        "kind": "enum",
+        "scores": {
+          "no": 0,
+          "outdoor_only": 0.5,
+          "same_room": 1
+        }
+      }
     },
     {
       "key": "capacity_persons",
@@ -272,7 +358,9 @@
       "enum_options": null,
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 20
+      "onsite_rank": 20,
+      "habitability": null,
+      "habitability_excluded_reason": "軸B の入力"
     },
     {
       "key": "capacity_area_sqm",
@@ -282,7 +370,9 @@
       "enum_options": null,
       "weight": 1,
       "help_text": "",
-      "onsite_rank": 21
+      "onsite_rank": 21,
+      "habitability": null,
+      "habitability_excluded_reason": "軸B の入力"
     }
   ]
 }

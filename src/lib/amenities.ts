@@ -12,6 +12,8 @@ export interface AmenityDef {
   help_text: string
   /** 現地で目視確認しやすい順（小さいほど先）。投稿フォームの並び順に使う */
   onsite_rank: number
+  habitability: unknown
+  habitability_excluded_reason?: string
 }
 
 export const amenityCategories: { key: string; label_ja: string; items: AmenityDef[] }[] = defs.categories.map((c) => ({

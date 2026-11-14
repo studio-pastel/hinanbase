@@ -11,6 +11,7 @@ import {
 } from './lib/paths.ts'
 import { assignFacilityIds, formatRegistry, parseRegistry } from './lib/registry.ts'
 import { readSourceCsv } from './lib/source.ts'
+import { tileProps } from './lib/tileProps.ts'
 
 const snapshot = latestSnapshot()
 console.log(`取得日 ${snapshot.date} の元データを読み込みます`)
@@ -71,13 +72,7 @@ for (const muniKey of [...byMuni.keys()].sort()) {
     stats.designation_rows.shelter += f.designations.shelter.length
     stats.designation_rows.emergency += f.designations.emergency_site.length
     for (const r of f.merge_rules) ruleCounts[r] = (ruleCounts[r] ?? 0) + 1
-    // タイルの属性（SPEC §2.4）。ne/ns/h0〜h7 は低ズームのまとめ表示で件数を合算するための 0/1
-    const props: Record<string, string | number> = {
-      id: f.id, name: f.name, muni: muniKey, kind, hz, state: f.scores.display_state,
-      rs: restrictedOnly ? 1 : 0,
-      ne: kind & 1 ? 1 : 0, ns: kind & 2 ? 1 : 0,
-    }
-    HAZARD_KEYS.forEach((_, i) => { props[`h${i}`] = hz & (1 << i) ? 1 : 0 })
+    const props = tileProps(f, muniKey)
     ndjson.push(JSON.stringify({ type: 'Feature', geometry: { type: 'Point', coordinates: [f.lng, f.lat] }, properties: props }))
   }
 }

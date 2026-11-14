@@ -11,7 +11,7 @@
 
 Phase 1（地図に全国の避難所が出る）は公開済みです（ https://hinanbase.pages.dev/ ）。設備情報はまだ1件もないため、全施設が「未確認」として表示されます。
 
-Phase 2（市民投稿）は実装済みですが、Google ログインと写真アップロードの設定が済んでいないため、公開環境にはまだ反映していません（[docs/DATA_NOTES.md](docs/DATA_NOTES.md) の 10 章）。
+Phase 2（市民投稿）と Phase 3（軸C の点数、表示状態の色分け、「冷房なし」の絞り込み）も公開済みです。写真アップロードと日次ビルドの自動実行は、認証情報の設定待ちです（[docs/DATA_NOTES.md](docs/DATA_NOTES.md) の 10 章・11 章）。
 
 ## 必要なもの
 
@@ -45,6 +45,7 @@ npm run dev                    # 別のターミナルで。http://localhost:517
 | コマンド | 内容 |
 |---|---|
 | `npm run data:facilities` | CSV 2本を読み、施設に統合して市区町村ごとの JSON を作る。`data/registry/facility-ids.csv` を更新する |
+| `npm run data:rescore` | Supabase の確定設備値を市区町村 JSON に載せ、4 軸の点数を算出し直す |
 | `npm run data:tiles` | tippecanoe で `tiles/shelters.pmtiles` を作る |
 | `npm run data:summaries` | 全国集計・市区町村の索引・`meta.json` を作る |
 | `npm run data:sync` | 施設索引と設備項目マスタを Supabase に同期する（要 service role key） |

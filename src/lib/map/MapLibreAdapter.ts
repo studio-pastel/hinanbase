@@ -8,7 +8,7 @@ import type { Point } from 'geojson'
 import { Protocol } from 'pmtiles'
 import { DISPLAY_STATES, HAZARD_KEYS, type DisplayState } from '../../../shared/types.ts'
 import { ICON_PIXEL_RATIO, clusterIcon, markerIcon, selectedIcon } from './icons.ts'
-import type { MapAdapter, MapFeature, MapFilter, MapMountOptions } from './MapAdapter.ts'
+import { clusterCountAttributes, type MapAdapter, type MapFeature, type MapFilter, type MapMountOptions } from './MapAdapter.ts'
 
 let protocolReady = false
 function ensureProtocol() {
@@ -30,7 +30,7 @@ const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(
 
 export class MapLibreAdapter implements MapAdapter {
   private map: MapLibreMap | null = null
-  private filter: MapFilter = { kind: 'all', hazard: 'all', states: [...DISPLAY_STATES] }
+  private filter: MapFilter = { kind: 'all', hazard: 'all', states: [...DISPLAY_STATES], ac: 'all' }
   private selectedId: string | null = null
   private selectCallback: ((f: MapFeature | null) => void) | null = null
   private loaded = false
@@ -180,8 +180,7 @@ export class MapLibreAdapter implements MapAdapter {
   private applyFilter() {
     const map = this.map
     if (!map || !this.loaded) return
-    const { kind, hazard, states } = this.filter
-    const hazardAttr = hazard === 'all' ? null : `h${HAZARD_KEYS.indexOf(hazard)}`
+    const { kind, hazard, states, ac } = this.filter
 
     // 個別の点：属性そのもので正確に絞り込める
     const pointConds: ExpressionSpecification[] = [
@@ -190,22 +189,21 @@ export class MapLibreAdapter implements MapAdapter {
     ]
     if (kind === 'emergency') pointConds.push(['>', ['get', 'ne'], 0])
     if (kind === 'shelter') pointConds.push(['>', ['get', 'ns'], 0])
-    if (hazardAttr) pointConds.push(['>', ['get', hazardAttr], 0])
+    if (hazard !== 'all') pointConds.push(['>', ['get', `h${HAZARD_KEYS.indexOf(hazard)}`], 0])
+    if (ac === 'none') pointConds.push(['==', ['get', 'ac'], 'none'])
     map.setFilter(LAYER_POINTS, ['all', ...pointConds] as FilterSpecification)
 
-    // まとめ表示：合算済みの属性（ne / ns / h0〜h7）から件数を出す。
-    // 「避難所 × 災害種別」は合算値から求められないので、件数を出さずに印だけ表示する。
-    // Phase 1 では全施設が unknown なので、表示状態は「unknown を含むか」だけで判定できる。
-    const showAny = states.includes('unknown' satisfies DisplayState)
-    let count: ExpressionSpecification = ['get', 'point_count']
-    let exact = true
-    if (hazardAttr) {
-      count = ['get', hazardAttr]
-      exact = kind !== 'shelter'
-    } else if (kind === 'emergency') count = ['get', 'ne']
-    else if (kind === 'shelter') count = ['get', 'ns']
-    map.setFilter(LAYER_CLUSTERS, ['all', ['has', 'point_count'], showAny, ['>', count, 0]] as FilterSpecification)
-    map.setLayoutProperty(LAYER_CLUSTERS, 'icon-image', exact ? ['concat', 'c-', ['to-string', count]] : 'c-')
+    // まとめ表示：合算済みの属性から件数を出す。条件が 2 つ以上重なると正確な件数は求められないので、
+    // 該当しうるまとまりの印だけを件数なしで表示する
+    const sums: ExpressionSpecification[] = clusterCountAttributes(this.filter).map((a) =>
+      typeof a === 'string'
+        ? ['get', a]
+        : a.length === 0 ? 0 : (['+', ...a.map((x) => ['coalesce', ['get', x], 0])] as ExpressionSpecification),
+    ) as ExpressionSpecification[]
+    const count: ExpressionSpecification = sums[0] ?? ['get', 'point_count']
+    const positive = (sums.length > 0 ? sums : [count]).map((e): ExpressionSpecification => ['>', e, 0])
+    map.setFilter(LAYER_CLUSTERS, ['all', ['has', 'point_count'], ...positive] as FilterSpecification)
+    map.setLayoutProperty(LAYER_CLUSTERS, 'icon-image', sums.length <= 1 ? ['concat', 'c-', ['to-string', count]] : 'c-')
   }
 }
 

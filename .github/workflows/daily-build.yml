@@ -1,0 +1,56 @@
+# 日次ビルド（SPEC §4.3、§5.6）：確定設備値を地図タイルと点数に反映する。
+# 公開済みの施設データを取得し、Supabase の確定設備値を載せて算出し直し、変わったファイルだけ R2 に上げる。
+# 元の CSV は使わない（国土地理院のデータの取り込み直しは、手元で行う）。
+#
+# 必要な設定
+#   リポジトリ変数：DAILY_BUILD_ENABLED=true / DATA_BASE_URL / R2_BUCKET / SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY
+#   シークレット  ：CLOUDFLARE_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY
+name: Daily build
+on:
+  schedule:
+    - cron: '0 19 * * *' # 日本時間 04:00
+  workflow_dispatch:
+concurrency:
+  group: daily-build
+  cancel-in-progress: false
+jobs:
+  build:
+    if: ${{ vars.DAILY_BUILD_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: tippecanoe のキャッシュ
+        id: tippecanoe-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/tippecanoe-bin
+          key: tippecanoe-2.79.0-${{ runner.os }}
+      - name: tippecanoe をビルド
+        if: steps.tippecanoe-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update && sudo apt-get install -y libsqlite3-dev zlib1g-dev
+          git clone --depth 1 --branch 2.79.0 https://github.com/felt/tippecanoe.git /tmp/tippecanoe
+          make -C /tmp/tippecanoe -j"$(nproc)"
+          mkdir -p ~/tippecanoe-bin && cp /tmp/tippecanoe/tippecanoe ~/tippecanoe-bin/
+      - run: echo "$HOME/tippecanoe-bin" >> "$GITHUB_PATH"
+      - name: 設備値を取り込んで算出し直す
+        env:
+          VITE_DATA_BASE_URL: ${{ vars.DATA_BASE_URL }}
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+        run: npm run data:daily
+      - name: R2 に同期（変わったファイルだけ）
+        env:
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          test -n "$R2_ACCESS_KEY_ID" && test -n "$R2_SECRET_ACCESS_KEY" && test -n "$CLOUDFLARE_ACCOUNT_ID"
+          npm run data:upload
