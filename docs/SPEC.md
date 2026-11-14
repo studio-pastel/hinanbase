@@ -171,7 +171,7 @@ D1 の既知の列（Step 0 で実物を確認して確定させること）：
 
 ### 2.6 設備項目マスタ（`config/amenity-defs.json` の初期内容）
 
-各項目は `key, label_ja, category, value_type, enum_options, weight, help_text` を持つ。
+各項目は `key, label_ja, category, value_type, enum_options, weight, help_text, onsite_rank` を持つ。`onsite_rank` は現地で目視確認しやすい順（小さいほど先）で、投稿フォームの並び順に使う（§6.4）。
 
 | key | label_ja | category | type | 選択肢・備考 |
 |---|---|---|---|---|
@@ -244,6 +244,8 @@ create table reports (
   observed_at date not null,
   note text,
   reporter_id uuid not null references auth.users(id),
+  -- 投稿時点の投稿者の立場。施設管理者の投稿は official として扱う
+  reporter_role text not null default 'user' check (reporter_role in ('user','facility_admin')),
   status text not null default 'pending'
     check (status in ('pending','accepted','rejected','superseded')),
   reviewed_by uuid references auth.users(id),
@@ -264,9 +266,18 @@ create table disputes (
   raiser_id uuid not null references auth.users(id),
   status text not null default 'open' check (status in ('open','resolved','dismissed')),
   resolution_note text,
+  resolved_by uuid references auth.users(id),
+  resolved_at timestamptz,
   created_at timestamptz default now()
 );
 ```
+
+上記のほかに、次を持つ（定義の正は `supabase/migrations/`）。
+
+- `facility_admin_applications`：施設管理者アカウントの申請（§4.5）。本人とモデレーターだけが読める。
+- `removal_requests`：削除・訂正の要請（§4.5）。モデレーターだけが読める。
+- `private.settings`：公開しない設定値。`auto_accept_new_with_evidence`（§4.2 の自動承認の切り替え。初期値は無効）、投稿者を匿名化するための塩、投稿写真の URL の接頭辞。
+- 公開ビュー `reports_public` / `disputes_public`（§4.4）と、モデレーション用のビュー。
 
 ---
 
@@ -337,7 +348,7 @@ Phase 1 では全施設が `unknown` になる。それが正しい初期状態�
 
 | confidence | 条件 |
 |---|---|
-| `official` | 自治体公開データ、または施設管理者アカウントの投稿 |
+| `official` | 自治体公開データ、または施設管理者アカウントの投稿（担当の市区町村の施設に限る。§4.5） |
 | `verified` | 異なる2名以上が、根拠 `on_site` または `photo` で同じ値を投稿し、観測日が180日以内 |
 | `reported` | 投稿1件のみ、またはモデレーター承認 |
 | `disputed` | 未解決の異議がある。スコア計算から除外し、詳細ページに注記 |
@@ -363,16 +374,19 @@ Phase 1 では全施設が `unknown` になる。それが正しい初期状態�
 
 - すべての設備値の横に「この情報は違う」を常設。
 - 押すと `disputes` が作られ、その項目は即座に `disputed` になる。濫用防止のため1ユーザーあたり24時間で3件まで。
-- 争点は自由記述の議論にせず、「対立する2つの値と、それぞれの根拠」として並べて表示する。
-- `reports` は物理削除しない。施設ごとの編集履歴を誰でも閲覧できる。
+- 争点は自由記述の議論にせず、「対立する2つの値」として並べて表示する。異議の理由の自由記述と根拠 URL は公開せず、モデレーターだけが読む。公開するのは対立する値・状態・運営の判断。
+- モデレーターは異議を「解決」とする際に、確定値を取り下げて「未確認」に戻せる（支えていた投稿は `superseded` になり、消えない）。正しい値は新しい投稿で入れ直す。
+- `reports` は物理削除しない（DELETE と TRUNCATE をデータベース側で禁止する）。施設ごとの編集履歴を誰でも閲覧できる。
+- 公開する履歴の範囲：投稿の補足（自由記述）・根拠 URL・写真は、承認済み（および後の情報で置き換えられたもの）だけ公開する。確認待ち・却下の投稿は、項目・値・根拠の種類・状態・却下理由だけを公開する（未確認の文章やリンクが確認前に公開されるのを防ぐため）。
+- 投稿者は、利用者 ID から作った 10 文字の記号で表示する。同じ人の投稿は同じ記号になるが、記号から利用者は特定できない。
 
 ### 4.5 荒らし対策・施設管理者
 
-- 新規アカウントは登録後24時間、投稿3件まで。
-- 却下率が50%を超えたアカウントに要注意フラグ。
+- 新規アカウントは登録後24時間、投稿3件まで。それ以降も、1利用者あたり24時間で100件まで。
+- 却下率が50%を超えたアカウントに要注意フラグ。フラグはモデレーション画面に表示するだけで、投稿の自動制限は行わない。
 - 写真はアップロード時にサーバー側（Supabase Edge Function）で EXIF を除去・リサイズしてから R2 に保存する。除去前のファイルは公開しない。
-- 施設管理者アカウント：申請制（`lg.jp` ドメイン等の確認＋手動承認）。投稿は `official` として即時反映。訂正はできるが履歴は消せない。
-- 削除要請フォームを別途用意し、運営が判断する。
+- 施設管理者アカウント：申請制（`lg.jp` ドメイン等の確認＋手動承認）。承認時に担当の市区町村を付け（`app_metadata.muni_keys`）、**その市区町村の施設への投稿だけ**を `official` として即時反映する。担当外の施設への投稿は一般の利用者と同じ扱い。訂正はできるが履歴は消せない。
+- 削除要請フォームを別途用意し、運営が判断する。ログインなしで出せ、内容は運営だけが読む。
 
 ---
 
@@ -404,7 +418,7 @@ Phase 1 では全施設が `unknown` になる。それが正しい初期状態�
 | タイル生成 | tippecanoe（PMTiles を直接出力） |
 | ホスティング | Cloudflare Pages |
 | 静的データ・写真 | Cloudflare R2 |
-| 認証・投稿 | Supabase Free（Phase 2〜） |
+| 認証・投稿 | Supabase Free（Phase 2〜）。リージョンは ap-southeast-1（シンガポール） |
 | バッチ | TypeScript スクリプト。Phase 1 はローカル実行、のちに GitHub Actions |
 
 ### 5.3 地図プロバイダ
@@ -502,10 +516,10 @@ Phase 1 では全施設が `unknown` になる。それが正しい初期状態�
 |---|---|---|---|
 | `facility_index`, `amenity_defs` | 全員 | service_role | service_role |
 | `facility_amenities` | 全員 | 関数経由のみ | 関数経由のみ |
-| `reports` | 全員（`reporter_id` は公開ビューで匿名化） | ログインユーザー（`submit_report` 関数経由） | moderator |
-| `disputes` | 全員（同上） | ログインユーザー（`raise_dispute` 関数経由） | moderator |
+| `reports` | 本体は本人とモデレーター。全員向けは公開ビュー（`reporter_id` を匿名化、§4.4 の範囲） | ログインユーザー（`submit_report` 関数経由） | moderator |
+| `disputes` | 同上 | ログインユーザー（`raise_dispute` 関数経由） | moderator |
 
-- ロールは `app_metadata.role` に `user / facility_admin / moderator / admin`。
+- ロールは `app_metadata.role` に `user / facility_admin / moderator / admin`。施設管理者の担当は `app_metadata.muni_keys`。
 - レート制限と入力検証は関数内で行う。
 - Free プランの自動停止対策として、GitHub Actions から3日おきに軽い読み取りを実行する。
 
