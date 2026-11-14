@@ -60,7 +60,8 @@
         "full"
       ],
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 4
     },
     {
       "key": "heating_main_hall",
@@ -74,7 +75,8 @@
         "full"
       ],
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 5
     },
     {
       "key": "insulation",
@@ -83,7 +85,8 @@
       "value_type": "boolean",
       "enum_options": null,
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 17
     },
     {
       "key": "toilet_total",
@@ -92,7 +95,8 @@
       "value_type": "integer",
       "enum_options": null,
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 15
     },
     {
       "key": "toilet_western_ratio",
@@ -101,7 +105,8 @@
       "value_type": "integer",
       "enum_options": null,
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 16
     },
     {
       "key": "toilet_multipurpose",
@@ -110,7 +115,8 @@
       "value_type": "boolean",
       "enum_options": null,
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 3
     },
     {
       "key": "shower",
@@ -123,7 +129,8 @@
         "bath"
       ],
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 7
     },
     {
       "key": "water_supply",
@@ -132,7 +139,8 @@
       "value_type": "boolean",
       "enum_options": null,
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 12
     },
     {
       "key": "power_backup",
@@ -145,7 +153,8 @@
         "full"
       ],
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 11
     },
     {
       "key": "power_duration_h",
@@ -154,7 +163,8 @@
       "value_type": "integer",
       "enum_options": null,
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 18
     },
     {
       "key": "solar_battery",
@@ -163,7 +173,8 @@
       "value_type": "boolean",
       "enum_options": null,
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 10
     },
     {
       "key": "elevator",
@@ -172,7 +183,8 @@
       "value_type": "boolean",
       "enum_options": null,
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 2
     },
     {
       "key": "step_free_entry",
@@ -181,7 +193,8 @@
       "value_type": "boolean",
       "enum_options": null,
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 1
     },
     {
       "key": "wifi",
@@ -190,7 +203,8 @@
       "value_type": "boolean",
       "enum_options": null,
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 6
     },
     {
       "key": "stockpile_onsite",
@@ -199,7 +213,8 @@
       "value_type": "boolean",
       "enum_options": null,
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 9
     },
     {
       "key": "stockpile_days",
@@ -208,7 +223,8 @@
       "value_type": "integer",
       "enum_options": null,
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 19
     },
     {
       "key": "partition_kit",
@@ -221,7 +237,8 @@
         "sufficient"
       ],
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 14
     },
     {
       "key": "kitchen",
@@ -230,7 +247,8 @@
       "value_type": "boolean",
       "enum_options": null,
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 8
     },
     {
       "key": "pet_accepted",
@@ -243,7 +261,8 @@
         "same_room"
       ],
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 13
     },
     {
       "key": "capacity_persons",
@@ -252,7 +271,8 @@
       "value_type": "integer",
       "enum_options": null,
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 20
     },
     {
       "key": "capacity_area_sqm",
@@ -261,7 +281,8 @@
       "value_type": "integer",
       "enum_options": null,
       "weight": 1,
-      "help_text": ""
+      "help_text": "",
+      "onsite_rank": 21
     }
   ]
 }

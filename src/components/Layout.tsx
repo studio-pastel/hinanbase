@@ -1,9 +1,11 @@
 import { Link, Outlet } from '@tanstack/react-router'
 import { ja } from '../i18n/ja.ts'
+import { useAuth } from '../lib/auth.tsx'
 import { useMeta } from '../lib/data.ts'
 
 export function Layout() {
   const meta = useMeta()
+  const auth = useAuth()
   return (
     <div className="flex min-h-full flex-col">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:bg-white focus:px-3 focus:py-2">
@@ -21,8 +23,25 @@ export function Layout() {
         <nav aria-label={ja.nav.label} className="ml-auto flex gap-1 text-sm">
           <NavLink to="/">{ja.nav.map}</NavLink>
           <NavLink to="/list">{ja.nav.list}</NavLink>
+          {auth.isModerator && <NavLink to="/moderation">{ja.auth.moderation}</NavLink>}
         </nav>
+        {auth.available && !auth.loading && (
+          auth.session ? (
+            <button type="button" onClick={() => void auth.signOut()} className="rounded border border-line px-3 py-1.5 text-sm">
+              {ja.auth.signOut}
+            </button>
+          ) : (
+            <button type="button" onClick={() => void auth.signIn().catch(() => undefined)} className="rounded border border-line px-3 py-1.5 text-sm">
+              {ja.auth.signIn}
+            </button>
+          )
+        )}
       </header>
+      {auth.error && (
+        <p role="alert" className="m-0 border-b border-line bg-surface px-4 py-2 text-sm">
+          {ja.auth.failed}（{auth.error}）
+        </p>
+      )}
       <main id="main" className="flex min-h-0 flex-1 flex-col">
         <Outlet />
       </main>
@@ -32,13 +51,21 @@ export function Layout() {
           {meta.data && `（${ja.footer.fetched}：${meta.data.d1_fetched_date}）`}
           {ja.facility.cityNote}
         </p>
-        <p className="m-0">{ja.footer.license}</p>
+        <p className="m-0">
+          {ja.footer.license}
+          {auth.available && (
+            <>
+              {' '}<Link to="/removal-request">{ja.community.removal.link}</Link>
+              {' ・ '}<Link to="/facility-admin">{ja.community.admin.link}</Link>
+            </>
+          )}
+        </p>
       </footer>
     </div>
   )
 }
 
-function NavLink({ to, children }: { to: '/' | '/list'; children: React.ReactNode }) {
+function NavLink({ to, children }: { to: '/' | '/list' | '/moderation'; children: React.ReactNode }) {
   return (
     <Link
       to={to}

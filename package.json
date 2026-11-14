@@ -15,9 +15,11 @@
     "data:summaries": "tsx scripts/build-summaries.ts",
     "data:build": "npm run data:facilities && npm run data:tiles && npm run data:summaries",
     "data:serve": "tsx scripts/serve-data.ts",
-    "data:upload": "tsx scripts/upload-r2.ts"
+    "data:upload": "tsx scripts/upload-r2.ts",
+    "data:sync": "tsx --env-file=.env.local scripts/sync-supabase.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
     "@tanstack/react-query": "^5.107.1",
     "@tanstack/react-router": "^1.170.46",
     "maplibre-gl": "^6.17.0",

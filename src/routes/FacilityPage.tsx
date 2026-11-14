@@ -1,10 +1,14 @@
 import { Link, useParams } from '@tanstack/react-router'
-import { HAZARD_KEYS, type Facility } from '../../shared/types.ts'
+import { useState } from 'react'
+import { HAZARD_KEYS, type AmenityValue, type Facility } from '../../shared/types.ts'
+import { DisputeForm, History } from '../components/Community.tsx'
 import { Status } from '../components/Layout.tsx'
 import { MapView } from '../components/MapView.tsx'
 import { StateLabel } from '../components/StateMark.tsx'
 import { ja } from '../i18n/ja.ts'
-import { amenityCategories, formatAmenity } from '../lib/amenities.ts'
+import { amenityCategories, formatValue } from '../lib/amenities.ts'
+import { useFacilityHistory, useLiveAmenities } from '../lib/community.ts'
+import { supabase } from '../lib/supabase.ts'
 import { useMeta, useMuni } from '../lib/data.ts'
 
 const AXES = ['hazard', 'capacity', 'habitability', 'logistics'] as const
@@ -62,7 +66,8 @@ export function FacilityPage() {
 
       <Designations facility={facility} />
       <ScoreBars facility={facility} />
-      <Amenities facility={facility} />
+      <Amenities facility={facility} muniKey={muniKey} />
+      {supabase && <History facilityId={facility.id} />}
 
       <section aria-labelledby="source-h" className="rounded border border-line bg-surface p-4 text-sm">
         <h2 id="source-h" className="m-0 mb-2 text-base font-bold">{ja.facility.source}</h2>
@@ -71,6 +76,11 @@ export function FacilityPage() {
         <p className="m-0 mt-2 font-bold">{ja.facility.cityNote}</p>
         <p className="m-0 mt-2">{ja.facility.kindNote}</p>
         {facility.merge_rules.length > 0 && <p className="m-0 mt-2 text-ink-soft">{ja.facility.mergeNote}</p>}
+        {supabase && (
+          <p className="m-0 mt-2">
+            <a href={`/removal-request?facility=${encodeURIComponent(facility.id)}`}>{ja.community.removal.link}</a>
+          </p>
+        )}
       </section>
     </article>
   )
@@ -183,23 +193,78 @@ function ScoreBars({ facility }: { facility: Facility }) {
   )
 }
 
-function Amenities({ facility }: { facility: Facility }) {
+function Amenities({ facility, muniKey }: { facility: Facility; muniKey: string }) {
+  // 静的 JSON の確定値に、Supabase の最新の確定値を上書きする。取得に失敗しても静的値で表示を続ける（SPEC §4.3）
+  const live = useLiveAmenities(facility.id)
+  const history = useFacilityHistory(facility.id)
+  const amenities: Record<string, AmenityValue> = { ...facility.amenities, ...(live.data ?? {}) }
+  const [disputing, setDisputing] = useState<string | null>(null)
+  const openDisputes = (history.data?.disputes ?? []).filter((d) => d.status === 'open')
   return (
     <section aria-labelledby="amen-h">
       <h2 id="amen-h" className="m-0 text-lg font-bold">{ja.facility.amenities}</h2>
       <p className="m-0 mb-2 text-xs text-ink-soft">{ja.facility.amenitiesNote}</p>
+      {supabase && (
+        <p className="m-0 mb-3 rounded border border-line bg-surface p-3 text-sm">
+          <Link to="/f/$muniKey/$facilityId/report" params={{ muniKey, facilityId: facility.id }} className="font-bold">
+            {ja.community.addInfo}
+          </Link>
+          <span className="mt-1 block text-xs text-ink-soft">{ja.community.mapDelay}</span>
+        </p>
+      )}
+      {live.isError && <p role="status" className="m-0 mb-2 text-xs text-ink-soft">{ja.community.liveError}</p>}
       <div className="grid gap-3 sm:grid-cols-2">
         {amenityCategories.map((cat) => (
           <div key={cat.key} className="rounded border border-line bg-surface p-3">
             <h3 className="m-0 mb-1 text-sm font-bold">{cat.label_ja}</h3>
             <dl className="m-0 text-sm">
               {cat.items.map((def) => {
-                const v = facility.amenities[def.key]
-                const known = v !== undefined && v.confidence !== 'disputed'
+                const v = amenities[def.key]
+                const disputed = v?.confidence === 'disputed'
+                const counters = openDisputes.filter((d) => d.amenity_key === def.key)
                 return (
-                  <div key={def.key} className="flex justify-between gap-3 border-t border-line py-1 first:border-t-0">
-                    <dt>{def.label_ja}</dt>
-                    <dd className={known ? 'm-0 font-bold' : 'm-0 text-ink-soft'}>{formatAmenity(def, v)}</dd>
+                  <div key={def.key} className="border-t border-line py-1.5 first:border-t-0">
+                    <div className="flex justify-between gap-3">
+                      <dt>{def.label_ja}</dt>
+                      <dd className={v && !disputed ? 'm-0 text-right font-bold' : 'm-0 text-right text-ink-soft'}>
+                        {v ? formatValue(def, v.value) : ja.facility.unknownValue}
+                      </dd>
+                    </div>
+                    {v && (
+                      <div className="mt-0.5 flex flex-wrap items-center justify-end gap-x-2 text-xs text-ink-soft">
+                        <span
+                          className={disputed ? 'rounded border border-ink px-1.5 font-bold text-ink' : 'rounded border border-line px-1.5'}
+                          title={ja.community.confidenceHelp[v.confidence]}
+                        >
+                          {ja.community.confidence[v.confidence]}
+                        </span>
+                        <span>{ja.community.evidence(v.evidence_count)}</span>
+                        {v.observed_at && <span>{ja.community.observedAt} {v.observed_at}</span>}
+                        {supabase && (
+                          <button type="button" className="underline" aria-expanded={disputing === def.key}
+                            onClick={() => setDisputing(disputing === def.key ? null : def.key)}>
+                            {ja.community.dispute.button}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {/* 争点は議論ではなく「対立する2つの値」として並べる（SPEC §4.4） */}
+                    {v && disputed && (
+                      <div className="mt-1 grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded border border-line p-1.5">
+                          <div className="text-ink-soft">{ja.community.dispute.currentValue}</div>
+                          <div className="font-bold">{formatValue(def, v.value)}</div>
+                        </div>
+                        <div className="rounded border border-line p-1.5">
+                          <div className="text-ink-soft">{ja.community.dispute.counterValue}</div>
+                          <div className="font-bold">
+                            {counters.filter((c) => c.counter_value !== null).map((c) => formatValue(def, c.counter_value)).join('、')
+                              || ja.community.dispute.noCounter}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {disputing === def.key && <DisputeForm facilityId={facility.id} def={def} onClose={() => setDisputing(null)} />}
                   </div>
                 )
               })}

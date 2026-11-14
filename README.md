@@ -9,7 +9,9 @@
 
 ## 現在の状態
 
-Phase 1（地図に全国の避難所が出る）まで実装済みです。設備情報はまだ1件もないため、全施設が「未確認」として表示されます。
+Phase 1（地図に全国の避難所が出る）は公開済みです（ https://hinanbase.pages.dev/ ）。設備情報はまだ1件もないため、全施設が「未確認」として表示されます。
+
+Phase 2（市民投稿）は実装済みですが、Google ログインと写真アップロードの設定が済んでいないため、公開環境にはまだ反映していません（[docs/DATA_NOTES.md](docs/DATA_NOTES.md) の 10 章）。
 
 ## 必要なもの
 
@@ -45,6 +47,7 @@ npm run dev                    # 別のターミナルで。http://localhost:517
 | `npm run data:facilities` | CSV 2本を読み、施設に統合して市区町村ごとの JSON を作る。`data/registry/facility-ids.csv` を更新する |
 | `npm run data:tiles` | tippecanoe で `tiles/shelters.pmtiles` を作る |
 | `npm run data:summaries` | 全国集計・市区町村の索引・`meta.json` を作る |
+| `npm run data:sync` | 施設索引と設備項目マスタを Supabase に同期する（要 service role key） |
 | `npm run data:upload` | `data/build/` の公開用ファイルを Cloudflare R2 に同期する（要認証情報） |
 | `npm run lint` / `npm run typecheck` / `npm test` | Lint、型チェック、テスト |
 | `npm run build` | フロントエンドの本番ビルド（`dist/`） |
@@ -66,6 +69,9 @@ tests/                     テスト
 data/raw/                  元データ（Git 管理外）
 data/build/                生成物（Git 管理外）
 data/registry/             facility_id の対応表（Git 管理）
+supabase/migrations/       テーブル定義・権限・投稿処理の SQL
+supabase/functions/        Edge Function（写真の EXIF 除去と R2 への保存）
+supabase/tests/            データベースの検証用 SQL
 ```
 
 ## 出典

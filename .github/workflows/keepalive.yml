@@ -1,0 +1,21 @@
+# Supabase の無料プランは、一定期間アクセスがないとプロジェクトが停止する。
+# 3日おきに軽い読み取りを行って停止を防ぐ（SPEC §7）。
+# 使うのは公開してよい値だけ（リポジトリ変数 SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY）。
+name: Supabase keepalive
+on:
+  schedule:
+    - cron: '17 3 */3 * *'
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 設備項目マスタを1件読む
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          test -n "$SUPABASE_URL" && test -n "$SUPABASE_PUBLISHABLE_KEY"
+          curl --fail --silent --show-error \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+            "$SUPABASE_URL/rest/v1/amenity_defs?select=key&limit=1"

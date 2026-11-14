@@ -104,3 +104,77 @@ XDG_CONFIG_HOME="$PWD/.wrangler/auth" npx wrangler r2 bucket cors set hinanbase-
 - `data:upload` は、S3 の認証情報（`R2_ACCESS_KEY_ID` など）がなければ wrangler 経由で上げる。上げ終えたファイルの記録を `data/build/.upload-manifest.<バケット名>.json` に持ち、次回は変更のあったファイルだけ上げる。この記録を消すと全ファイルを上げ直す。
 - `r2.dev` の URL は開発用途向けでレート制限がある。正式公開の前に独自ドメインを接続し、`VITE_DATA_BASE_URL` と CORS の許可元を差し替える（SPEC §10-5）。
 - Pages プロジェクトは、wrangler の新しい既定（Workers への統合）ではなく従来の Cloudflare Pages として作成した（仕様 §5.2 が Cloudflare Pages を指定しているため）。
+
+---
+
+# Phase 2 の設定（Supabase・Google ログイン・写真）
+
+## 現在の構成（2026-11-14）
+
+| | 値 |
+|---|---|
+| Supabase プロジェクト | `hinan-base`（ref `zzfqppypnmrxhzhistpj`、リージョン ap-southeast-1、無料プラン） |
+| スキーマ | `supabase/migrations/20261114000000_phase2.sql` を反映済み |
+| 施設索引 | `npm run data:sync` で同期済み（139,244 件） |
+| GitHub のリポジトリ変数 | `SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY`（どちらも公開してよい値。定期アクセス用） |
+
+`.env.local` に入っているもの（Git 管理外）：`VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY`（公開用キー）、`SUPABASE_SERVICE_ROLE_KEY`（**秘密。フロントのビルドに含めない**）。
+
+## スキーマの反映と検証
+
+```bash
+supabase link --project-ref zzfqppypnmrxhzhistpj
+supabase db query --linked -f supabase/migrations/20261114000000_phase2.sql   # 初回のみ
+supabase db query --linked -f supabase/tests/phase2_functions.sql            # 検証（最後にロールバックする）
+npm run data:sync                                                            # 施設索引と設備項目の同期
+```
+
+`npm run data:sync` は元データを取り込み直すたびに実行する。公的データから消えた施設は削除されず、`deprecated_at` が付く。
+
+## Google ログイン（未実施）
+
+1. Google Cloud コンソールでプロジェクトを作り、「OAuth 同意画面」を設定する（公開ステータスは「本番」にしないと、テストユーザー以外はログインできない）。
+2. 「認証情報」→「OAuth クライアント ID」→ 種類は「ウェブ アプリケーション」。
+   - 承認済みのリダイレクト URI：`https://zzfqppypnmrxhzhistpj.supabase.co/auth/v1/callback`
+   - 承認済みの JavaScript 生成元：`https://hinanbase.pages.dev`、`http://localhost:5173`
+3. Supabase ダッシュボード → Authentication → Sign In / Providers → Google を有効にし、クライアント ID とシークレットを入力する（シークレットはここにだけ入れる）。
+4. Authentication → URL Configuration
+   - Site URL：`https://hinanbase.pages.dev`
+   - Redirect URLs：`https://hinanbase.pages.dev/**`、`http://localhost:5173/**`
+
+## 最初のモデレーターの登録（未実施）
+
+運営者本人が一度ログインしたあと、その利用者に役割を付ける。`<メールアドレス>` はログインに使った Google アカウント。
+
+```bash
+supabase db query --linked "update auth.users set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{\"role\":\"admin\"}'::jsonb where email = '<メールアドレス>'"
+```
+
+役割はログインし直すと反映される。
+
+## 写真アップロード（未実施）
+
+1. Cloudflare ダッシュボード → R2 →「API トークンを管理」で、バケット `hinanbase-data` に限定した「オブジェクトの読み取りと書き込み」のトークンを作る。アクセスキー ID とシークレットアクセスキーが表示される。
+2. Edge Function の秘密情報を設定する（値はターミナルで入力し、リポジトリには入れない）。
+
+```bash
+supabase secrets set R2_ACCOUNT_ID=… R2_ACCESS_KEY_ID=… R2_SECRET_ACCESS_KEY=… R2_BUCKET=hinanbase-data PHOTO_PUBLIC_BASE_URL=<r2.dev の公開 URL>
+supabase functions deploy upload-photo
+supabase db query --linked "update private.settings set value = to_jsonb('<r2.dev の公開 URL>/photos/'::text) where key = 'photo_base_url'"
+```
+
+3. フロントを `VITE_PHOTO_UPLOAD_ENABLED=true` を付けてビルドし直す。
+
+`photo_base_url` を設定すると、その URL で始まる写真だけが投稿に添付できる（外部の画像 URL は拒否される）。
+
+## フロントのビルド（Phase 2 以降）
+
+```bash
+VITE_DATA_BASE_URL="<r2.dev の公開 URL>" \
+VITE_SUPABASE_URL="https://zzfqppypnmrxhzhistpj.supabase.co" \
+VITE_SUPABASE_ANON_KEY="<公開用キー>" \
+npm run build
+XDG_CONFIG_HOME="$PWD/.wrangler/auth" npx wrangler pages deploy dist --project-name hinanbase --branch main
+```
+
+`VITE_SUPABASE_*` を付けずにビルドすると、投稿機能のない Phase 1 相当の画面になる。
