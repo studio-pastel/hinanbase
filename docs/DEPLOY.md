@@ -131,7 +131,7 @@ npm run data:sync                                                            # �
 
 `npm run data:sync` は元データを取り込み直すたびに実行する。公的データから消えた施設は削除されず、`deprecated_at` が付く。
 
-## Google ログイン（未実施）
+## Google ログイン（実施済み）
 
 1. Google Cloud コンソールでプロジェクトを作り、「OAuth 同意画面」を設定する（公開ステータスは「本番」にしないと、テストユーザー以外はログインできない）。
 2. 「認証情報」→「OAuth クライアント ID」→ 種類は「ウェブ アプリケーション」。
@@ -142,7 +142,7 @@ npm run data:sync                                                            # �
    - Site URL：`https://hinanbase.pages.dev`
    - Redirect URLs：`https://hinanbase.pages.dev/**`、`http://localhost:5173/**`
 
-## 最初のモデレーターの登録（未実施）
+## 最初のモデレーターの登録（実施済み）
 
 運営者本人が一度ログインしたあと、その利用者に役割を付ける。`<メールアドレス>` はログインに使った Google アカウント。
 
@@ -152,7 +152,7 @@ supabase db query --linked "update auth.users set raw_app_meta_data = coalesce(r
 
 役割はログインし直すと反映される。
 
-## 写真アップロード（未実施）
+## 写真アップロード（実施済み）
 
 1. Cloudflare ダッシュボード → R2 →「API トークンを管理」で、バケット `hinanbase-data` に限定した「オブジェクトの読み取りと書き込み」のトークンを作る。アクセスキー ID とシークレットアクセスキーが表示される。
 2. Edge Function の秘密情報を設定する（値はターミナルで入力し、リポジトリには入れない）。
@@ -178,3 +178,18 @@ XDG_CONFIG_HOME="$PWD/.wrangler/auth" npx wrangler pages deploy dist --project-n
 ```
 
 `VITE_SUPABASE_*` を付けずにビルドすると、投稿機能のない Phase 1 相当の画面になる。
+
+## 日次ビルド（実施済み）
+
+`.github/workflows/daily-build.yml`。毎日 04:00（日本時間）に、公開済みの施設データへ Supabase の確定設備値を載せ直し、変わったファイルだけ R2 に上げる。手動実行は GitHub の Actions 画面、または次のコマンド。
+
+```bash
+gh workflow run "Daily build" -R studio-pastel/hinanbase
+```
+
+| 種類 | 名前 |
+|---|---|
+| リポジトリ変数 | `DAILY_BUILD_ENABLED`（`true` で有効）、`DATA_BASE_URL`、`R2_BUCKET`、`SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY` |
+| シークレット | `CLOUDFLARE_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY` |
+
+止めたいときは `DAILY_BUILD_ENABLED` を `false` にする。国土地理院のデータを取り込み直したときは、手元で `npm run data:build` と `npm run data:upload`、`npm run data:sync` を実行する（日次ビルドは元の CSV を使わない）。
