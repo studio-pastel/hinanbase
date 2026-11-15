@@ -8,6 +8,8 @@ export const SUM_ATTRIBUTES = [
   ...DISPLAY_STATES.map((_, i) => `s${i}`),
   // 冷房なし（aircon_main_hall が none で確定）の件数
   'acn',
+  // 指定された災害種別が想定区域と重なる（要確認の種別がある）件数
+  'hm',
 ]
 
 /** 冷房の確定値。未確認・争点中なら undefined（タイルの属性自体を持たせない） */
@@ -26,6 +28,7 @@ export function tileProps(f: Facility, muniKey: string): Record<string, string |
     rs: isRestrictedOnly(f) ? 1 : 0,
     ne: kind & 1 ? 1 : 0, ns: kind & 2 ? 1 : 0,
     acn: ac === 'none' ? 1 : 0,
+    hm: f.scores.hazard_check.status === 'attention' ? 1 : 0,
   }
   if (ac !== undefined) props.ac = ac
   HAZARD_KEYS.forEach((_, i) => { props[`h${i}`] = hz & (1 << i) ? 1 : 0 })

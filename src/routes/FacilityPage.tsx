@@ -104,14 +104,17 @@ function Designations({ facility }: { facility: Facility }) {
                   <li
                     key={k}
                     className={
-                      d.hazards[k]
-                        ? 'rounded border border-ink bg-ink px-1.5 py-0.5 text-white'
-                        : 'rounded border border-dashed border-line px-1.5 py-0.5 text-ink-soft'
+                      d.hazards[k] && d.zone?.[k] === 'in'
+                        ? 'rounded border-2 border-state-critical bg-white px-1.5 py-0.5 font-bold text-state-critical'
+                        : d.hazards[k]
+                          ? 'rounded border border-ink bg-ink px-1.5 py-0.5 text-white'
+                          : 'rounded border border-dashed border-line px-1.5 py-0.5 text-ink-soft'
                     }
                   >
                     {ja.hazard.names[k]}
                     <span className="sr-only">：{d.hazards[k] ? ja.hazard.designated : ja.hazard.notDesignated}</span>
                     <span aria-hidden="true">{d.hazards[k] ? ' ✓' : ' −'}</span>
+                    {d.hazards[k] && d.zone?.[k] === 'in' && <span className="ml-2">{ja.hazard.inZone}</span>}
                   </li>
                 ))}
               </ul>
@@ -162,6 +165,10 @@ function ScoreBars({ facility }: { facility: Facility }) {
       <dl className="m-0 space-y-2 rounded border border-line bg-surface p-4">
         {AXES.map((axis) => {
           const v = scores[axis]
+          // 軸A は点数を出さず、想定区域との重なりの有無を文で示す（SPEC §3.2）
+          if (axis === 'hazard') return <HazardAxis key={axis} check={scores.hazard_check} sites={facility.designations.emergency_site} />
+          // 軸B も点数を出さない。公表されている収容人数だけを示す（DATA_NOTES D-22）
+          if (axis === 'capacity') return <CapacityAxis key={axis} facility={facility} />
           return (
             <div key={axis} className="grid grid-cols-1 items-center gap-1 text-base sm:grid-cols-[10rem_1fr] sm:gap-3">
               <dt>{ja.facility.axes[axis]}</dt>
@@ -179,6 +186,10 @@ function ScoreBars({ facility }: { facility: Facility }) {
                     <span className="w-8 text-right tabular-nums">{v}</span>
                   </div>
                 )}
+                {axis === 'logistics' && v !== null && facility.road && <RoadDetail facility={facility} />}
+                {axis === 'logistics' && v === null && facility.road && (
+                  <p className="m-0 mt-1 text-sm text-ink-soft">{ja.facility.road.notFound(facility.road.searched_m)} {ja.facility.road.source}</p>
+                )}
               </dd>
             </div>
           )
@@ -190,6 +201,87 @@ function ScoreBars({ facility }: { facility: Facility }) {
         <pre className="m-0 mt-2 overflow-x-auto whitespace-pre-wrap rounded bg-paper p-2 text-sm">{JSON.stringify(scores.breakdown, null, 2)}</pre>
       </details>
     </section>
+  )
+}
+
+function CapacityAxis({ facility }: { facility: Facility }) {
+  const t = ja.facility
+  const ref = facility.scores.breakdown.capacity as { capacity_persons?: number | null; per_person_sqm?: number | null } | undefined
+  const persons = ref?.capacity_persons ?? null
+  const perPerson = ref?.per_person_sqm ?? null
+  return (
+    <div className="grid grid-cols-1 items-start gap-1 text-base sm:grid-cols-[10rem_1fr] sm:gap-3">
+      <dt>{t.axes.capacity}</dt>
+      <dd className="m-0 rounded border border-line p-2">
+        <p className="m-0 font-bold">{t.capacityNotScored}</p>
+        <p className="m-0 mt-1 text-sm">{persons === null ? t.capacityUnknown : t.capacityPersons(persons)}</p>
+        {perPerson !== null && <p className="m-0 mt-1 text-sm">{t.capacityPerPerson(perPerson)}</p>}
+        <p className="m-0 mt-1 text-sm text-ink-soft">{t.capacityNote}</p>
+      </dd>
+    </div>
+  )
+}
+
+function RoadDetail({ facility }: { facility: Facility }) {
+  const t = ja.facility.road
+  const road = facility.road!
+  const stock = facility.amenities.stockpile_onsite
+  const known = stock && stock.confidence !== 'disputed' && typeof stock.value === 'boolean' ? stock.value : null
+  return (
+    <div className="mt-1 text-sm">
+      <p className="m-0">
+        {road.distance_m === null ? t.notFound(road.searched_m) : t.distance(road.distance_m)}
+        {road.name && <span>（{road.name}{road.class !== null && t.classes[road.class] ? `・${t.classes[road.class]}` : ''}）</span>}
+      </p>
+      <p className="m-0 mt-1">{known === null ? t.stockpile.unknown : known ? t.stockpile.yes : t.stockpile.no}</p>
+      <p className="m-0 mt-1 text-ink-soft">
+        {t.note}{road.source_ym ? ` ${t.sourceYm(road.source_ym)}。` : ''} {t.source}
+      </p>
+    </div>
+  )
+}
+
+function HazardAxis({ check, sites }: { check: Facility['scores']['hazard_check'] | undefined; sites: Facility['designations']['emergency_site'] }) {
+  const t = ja.hazard.check
+  // 想定区域と重なった指定に付いている備考。判定には使わず、原文のまま並べる（DATA_NOTES D-19）
+  const notes = [...new Set(sites.filter((d) => d.note && Object.values(d.zone ?? {}).includes('in')).map((d) => d.note!))]
+  const status = check?.status ?? 'not_evaluated'
+  const names = (keys: readonly (keyof typeof ja.hazard.names)[]) => keys.map((k) => ja.hazard.names[k]).join('、')
+  return (
+    <div className="grid grid-cols-1 items-start gap-1 text-base sm:grid-cols-[10rem_1fr] sm:gap-3">
+      <dt>{ja.facility.axes.hazard}</dt>
+      <dd className="m-0">
+        {status === 'not_evaluated' ? (
+          <div className="axis-unrated flex h-8 items-center justify-center rounded border border-line text-sm font-bold text-ink-soft">
+            {t.not_evaluated}
+          </div>
+        ) : (
+          <div className={status === 'attention' ? 'rounded border-2 border-state-critical p-2' : 'rounded border border-line p-2'}>
+            <p className="m-0 font-bold">
+              <span aria-hidden="true">{status === 'attention' ? '! ' : ''}</span>
+              {t[status]}
+            </p>
+            {check && check.overlap.length > 0 && (
+              <p className="m-0 mt-1 text-sm">{t.overlapLabel}：<strong>{names(check.overlap)}</strong></p>
+            )}
+            {notes.length > 0 && (
+              <div className="mt-1 rounded bg-paper p-2 text-sm">
+                <p className="m-0 text-ink-soft">{t.muniNoteLabel}</p>
+                {notes.map((n) => <p key={n} className="m-0 mt-1 whitespace-pre-wrap">{n}</p>)}
+              </div>
+            )}
+            <p className="m-0 mt-1 text-sm text-ink-soft">{status === 'attention' ? t.attentionNote : t.noOverlapNote}</p>
+            {check && (
+              <p className="m-0 mt-1 text-sm text-ink-soft">
+                {t.checkedLabel}：{names(check.checked) || '—'}
+                {check.unchecked.length > 0 && <span className="ml-3">{t.uncheckedLabel}：{names(check.unchecked)}</span>}
+              </p>
+            )}
+            <p className="m-0 mt-1 text-sm text-ink-soft">{t.cityNote} {t.source}</p>
+          </div>
+        )}
+      </dd>
+    </div>
   )
 }
 

@@ -76,7 +76,8 @@ const stats = {
   hazards: Object.fromEntries(HAZARD_KEYS.map((k) => [k, 0])) as Record<string, number>,
   display_state: Object.fromEntries(DISPLAY_STATES.map((s) => [s, 0])) as Record<string, number>,
   facilities_with_any_amenity: 0,
-  axis_evaluated: { habitability: 0 },
+  axis_evaluated: { habitability: 0, logistics: 0 },
+  hazard_status: { attention: 0, no_overlap_found: 0, not_evaluated: 0 } as Record<string, number>,
 }
 const munis: { key: string; prefCode: string; prefName: string; muniName: string; count: number }[] = []
 let changedMunis = 0
@@ -88,7 +89,7 @@ for (const file of readdirSync(muniDir).sort()) {
   for (const f of muni.facilities) {
     const next = amenities.get(f.id) ?? {}
     if (amenities.has(f.id)) used.add(f.id)
-    const scores = computeScores(next, defs)
+    const scores = computeScores(next, defs, f.designations.emergency_site, f.road)
     if (JSON.stringify(f.amenities) !== JSON.stringify(next) || JSON.stringify(f.scores) !== JSON.stringify(scores)) {
       f.amenities = next
       f.scores = scores
@@ -105,6 +106,8 @@ for (const file of readdirSync(muniDir).sort()) {
     stats.display_state[f.scores.display_state]!++
     if (Object.keys(f.amenities).length > 0) stats.facilities_with_any_amenity++
     if (f.scores.habitability !== null) stats.axis_evaluated.habitability++
+    if (f.scores.logistics !== null) stats.axis_evaluated.logistics++
+    stats.hazard_status[f.scores.hazard_check.status]!++
     ndjson.push(JSON.stringify({
       type: 'Feature', geometry: { type: 'Point', coordinates: [f.lng, f.lat] }, properties: tileProps(f, muni.muni_key),
     }))
@@ -122,5 +125,6 @@ writeFileSync(DERIVED_REPORT, JSON.stringify({ generated_at: now, ...stats, muni
 const orphan = [...amenities.keys()].filter((id) => !used.has(id))
 console.log(`施設 ${stats.facility_count} 件 / 設備情報あり ${stats.facilities_with_any_amenity} 件 / 軸C 評価済み ${stats.axis_evaluated.habitability} 件`)
 console.log('表示状態:', stats.display_state)
+console.log('軸A:', stats.hazard_status, '/ 軸D 評価済み:', stats.axis_evaluated.logistics)
 console.log(`書き換えた市区町村: ${changedMunis}`)
 if (orphan.length > 0) console.log(`施設データにない施設の設備値（廃止済みなど）: ${orphan.length} 件`)

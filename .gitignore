@@ -8,3 +8,4 @@ data/build/
 .DS_Store
 .wrangler/
 sample/
+data/cache/
