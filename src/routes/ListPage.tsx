@@ -1,4 +1,5 @@
 import { Link, useParams } from '@tanstack/react-router'
+import { useState } from 'react'
 import { Status } from '../components/Layout.tsx'
 import { StateLabel } from '../components/StateMark.tsx'
 import { fmt, ja } from '../i18n/ja.ts'
@@ -66,6 +67,11 @@ export function ListFacilitiesPage() {
   const { prefCode, muniKey } = useParams({ from: '/list/$prefCode/$muniKey' })
   const muni = useMuni(muniKey)
   const d = muni.data
+  // 地図の「想定区域と重なる施設だけを表示」と同じ絞り込み（地図を使わない経路でも同じ情報に届くように）
+  const [overlapOnly, setOverlapOnly] = useState(false)
+  const isOverlap = (f: NonNullable<typeof d>['facilities'][number]) => f.scores.hazard_check?.status === 'attention'
+  const overlapCount = d ? d.facilities.filter(isOverlap).length : 0
+  const shown = d ? (overlapOnly ? d.facilities.filter(isOverlap) : d.facilities) : []
   return (
     <Shell
       title={d ? `${d.pref_name}${d.muni_name}` : ja.list.facilities}
@@ -80,9 +86,20 @@ export function ListFacilitiesPage() {
       <Status loading={muni.isLoading} error={muni.isError} />
       {d && (
         <>
-          <p className="text-base text-ink-soft">{fmt.format(d.facilities.length)} {ja.unitFacilities}</p>
+          <p className="m-0 mt-2 text-base text-ink-soft">{fmt.format(d.facilities.length)} {ja.unitFacilities}</p>
+          {overlapCount > 0 && (
+            <div className="mt-2 rounded border border-line bg-surface p-3 text-base">
+              <p className="m-0">{ja.list.overlapCount(overlapCount)}</p>
+              <label className="mt-1 flex min-h-11 items-center gap-2 font-bold">
+                <input type="checkbox" className="size-5" checked={overlapOnly} onChange={(e) => setOverlapOnly(e.target.checked)} />
+                {ja.list.overlapOnly}
+              </label>
+              <p className="m-0 mt-1 text-sm text-ink-soft">{ja.list.overlapNote}</p>
+            </div>
+          )}
+          {shown.length === 0 && <p role="status">{ja.list.noMatch}</p>}
           <ul className="m-0 list-none p-0">
-            {d.facilities.map((f) => {
+            {shown.map((f) => {
               const s = f.designations.shelter
               const restrictedOnly = s.length > 0 && s.every((x) => x.restricted)
               return (
@@ -95,10 +112,22 @@ export function ListFacilitiesPage() {
                     {s.length > 0 && <span className="rounded border border-line px-1.5">{ja.kind.shelter}</span>}
                     {restrictedOnly && <span className="rounded border border-ink px-1.5 font-bold">{ja.kind.restrictedShort}</span>}
                   </div>
+                  {(isOverlap(f) || (f.road && f.road.distance_m !== null)) && (
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                      {isOverlap(f) && (
+                        <span className="rounded border-2 border-state-critical px-1.5 font-bold">
+                          <span aria-hidden="true">! </span>
+                          {ja.list.overlapBadge(f.scores.hazard_check.overlap.map((k) => ja.hazard.names[k]).join('、'))}
+                        </span>
+                      )}
+                      {f.road && f.road.distance_m !== null && <span className="text-ink-soft">{ja.list.roadBadge(f.road.distance_m)}</span>}
+                    </div>
+                  )}
                 </li>
               )
             })}
           </ul>
+          {d.facilities.some((f) => f.road) && <p className="mt-3 text-sm text-ink-soft">{ja.list.roadSource}</p>}
         </>
       )}
     </Shell>

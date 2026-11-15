@@ -63,6 +63,19 @@ export class RoadIndex {
     }
   }
 
+  /** 範囲の中にある線分の端点を順に渡す。fn が true を返したら打ち切って true を返す */
+  someVertexIn(minX: number, minY: number, maxX: number, maxY: number, fn: (x: number, y: number) => boolean): boolean {
+    for (let cx = Math.floor(minX / CELL); cx <= Math.floor(maxX / CELL); cx++) {
+      for (let cy = Math.floor(minY / CELL); cy <= Math.floor(maxY / CELL); cy++) {
+        for (const id of this.cells.get(`${cx},${cy}`) ?? []) {
+          const o = id * 5
+          if (fn(this.seg[o]!, this.seg[o + 1]!) || fn(this.seg[o + 2]!, this.seg[o + 3]!)) return true
+        }
+      }
+    }
+    return false
+  }
+
   /** 最寄りの道路。SEARCH_LIMIT_M の範囲になければ distance_m は null */
   nearest(lat: number, lng: number): RoadAccess {
     const cx = Math.floor(lng / CELL)

@@ -34,12 +34,22 @@ export interface HazardCheck {
   unchecked: HazardKey[]
 }
 
+/** 自治体が公表している想定収容人数（SPEC §2.3 の D3、DATA_NOTES D-28）。指定ごとに持ち、市民投稿の設備値とは混ぜない */
+export interface PublishedCapacity {
+  persons: number
+  /** もとの文字列。算出の前提が書かれていることがある（「1,350人（3.3平方メートルあたり2人）」など） */
+  raw: string
+  /** 公表している自治体と、データの名称・利用条件・掲載ページ・取得日 */
+  source: { publisher: string; title: string; license: string; page_url: string; fetched_date: string }
+}
+
 export interface EmergencyDesignation {
   source_id: string
   name: string
   hazards: Hazards
   /** 指定されている災害種別ごとの、想定区域との照合結果（照合できたものだけ） */
   zone?: Partial<Record<HazardKey, ZoneResult>>
+  capacity?: PublishedCapacity
   note: string | null
   lat: number
   lng: number
@@ -53,6 +63,7 @@ export interface ShelterDesignation {
   target: string | null
   other: string | null
   note: string | null
+  capacity?: PublishedCapacity
   lat: number
   lng: number
 }
@@ -70,6 +81,11 @@ export interface RoadAccess {
   name: string | null
   /** もとの計画図などの年月（例：'2016 03'） */
   source_ym: string | null
+  /**
+   * 5km 以上離れている施設だけに付ける。施設と同じ「ひと続きの陸地」に緊急輸送道路の指定があるか。
+   * no_road=ない（島など。軸D は未評価にする） / has_road=ある / large_land=大きな陸地で調べきれない（あるものとして扱う） / outside=陸地の面の外で判定できない
+   */
+  land?: 'no_road' | 'has_road' | 'large_land' | 'outside'
 }
 
 export interface AmenityValue {

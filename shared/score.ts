@@ -4,7 +4,7 @@
 //   * 算出根拠は breakdown にすべて残す。
 import { HAZARD_KEYS, type AmenityValue, type DisplayState, type EmergencyDesignation, type HazardCheck, type HazardKey, type RoadAccess, type Scores } from './types.ts'
 
-export const SCORE_METHOD_VERSION = 'phase4-3'
+export const SCORE_METHOD_VERSION = 'phase4-4'
 
 /** 想定区域のデータ（ハザードマップポータルサイト）と照合できる災害種別。地震・大規模な火事・火山現象は対応するデータがない */
 export const ZONE_CHECKABLE: HazardKey[] = ['flood', 'landslide', 'storm_surge', 'tsunami', 'inland_flood']
@@ -91,6 +91,10 @@ export function logisticsScore(road: RoadAccess | undefined, stockpile: AmenityV
   if (d === null) {
     return { score: null, breakdown: { status: 'not_evaluated', reason: `${road.searched_m / 1000}km 以内に緊急輸送道路の指定が見つからない（離島など）。いちばん低い点数にはせず、未評価とする`, road } }
   }
+  // 施設と同じ陸地に緊急輸送道路の指定がない場合（島など）も未評価にする。海をはさんだ道路までの距離には意味がないため（DATA_NOTES D-29）
+  if (road.land === 'no_road') {
+    return { score: null, breakdown: { status: 'not_evaluated', reason: '施設と同じ陸地（島など）に緊急輸送道路の指定がない。いちばん低い点数にはせず、未評価とする', road } }
+  }
   const base = ROAD_DISTANCE_SCORES.find((r) => d < r.under_m)!.score
   const known = stockpile && stockpile.confidence !== 'disputed' && typeof stockpile.value === 'boolean' ? stockpile.value : null
   const adjust = known === null ? 0 : known ? STOCKPILE_ADJUST : -STOCKPILE_ADJUST
@@ -107,7 +111,7 @@ export function logisticsScore(road: RoadAccess | undefined, stockpile: AmenityV
       note:
         '距離は直線距離で、実際の道のりではない。高速自動車国道と都市高速道路は除いて測っている。' +
         '道路のデータは 2020 年 3 月時点で、もとの計画図はそれより古い場合がある',
-      source: '「国土数値情報（緊急輸送道路データ）」（国土交通省）を加工して作成',
+      source: '「国土数値情報（緊急輸送道路データ、行政区域データ）」（国土交通省）を加工して作成',
     },
   }
 }

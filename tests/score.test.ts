@@ -90,7 +90,7 @@ describe('4軸の算出', () => {
   it('算出根拠を breakdown に残す', () => {
     const s = computeScores({ aircon_main_hall: v('partial'), wifi: v(true) }, defs)
     const h = s.breakdown.habitability as { items: Record<string, { score: number | null }>; excluded: string[] }
-    expect(s.breakdown.method_version).toBe('phase4-3')
+    expect(s.breakdown.method_version).toBe('phase4-4')
     expect(h.items.aircon_main_hall!.score).toBe(0.67)
     expect(h.items.shower!.score).toBeNull()
     expect(h.excluded).toContain('elevator')
@@ -141,6 +141,12 @@ describe('軸D：緊急輸送道路までの距離と敷地内備蓄', async () 
   it('近くに緊急輸送道路の指定が見つからない（離島など）なら未評価。いちばん低い点数にしない', () => {
     expect(logisticsScore(road(null), v(true))).toMatchObject({ score: null, breakdown: { status: 'not_evaluated' } })
     expect(computeScores({}, defs, [], road(null)).logistics).toBeNull()
+  })
+  it('同じ陸地に緊急輸送道路の指定がない（島など）なら未評価。大きな陸地や判定できない場合は点数を出す', () => {
+    expect(logisticsScore({ ...road(8000), land: 'no_road' }, undefined).score).toBeNull()
+    expect(logisticsScore({ ...road(8000), land: 'has_road' }, undefined).score).toBe(10)
+    expect(logisticsScore({ ...road(8000), land: 'large_land' }, undefined).score).toBe(10)
+    expect(logisticsScore({ ...road(8000), land: 'outside' }, undefined).score).toBe(10)
   })
   it('距離が未計算なら未評価（0 点ではない）', () => {
     expect(logisticsScore(undefined, v(true)).score).toBeNull()

@@ -188,7 +188,7 @@ function ScoreBars({ facility }: { facility: Facility }) {
                 )}
                 {axis === 'logistics' && v !== null && facility.road && <RoadDetail facility={facility} />}
                 {axis === 'logistics' && v === null && facility.road && (
-                  <p className="m-0 mt-1 text-sm text-ink-soft">{ja.facility.road.notFound(facility.road.searched_m)} {ja.facility.road.source}</p>
+                  <p className="m-0 mt-1 text-sm text-ink-soft">{facility.road.land === 'no_road' ? ja.facility.road.noRoadOnLand : ja.facility.road.notFound(facility.road.searched_m)} {ja.facility.road.source}</p>
                 )}
               </dd>
             </div>
@@ -209,12 +209,41 @@ function CapacityAxis({ facility }: { facility: Facility }) {
   const ref = facility.scores.breakdown.capacity as { capacity_persons?: number | null; per_person_sqm?: number | null } | undefined
   const persons = ref?.capacity_persons ?? null
   const perPerson = ref?.per_person_sqm ?? null
+  // 自治体の公表値は指定ごとに持つ。何の人数か（緊急避難場所／指定避難所）を添えて出す（DATA_NOTES D-28）
+  const published = [
+    ...facility.designations.emergency_site.filter((d) => d.capacity).map((d) => ({ d, kind: ja.kind.emergency })),
+    ...facility.designations.shelter.filter((d) => d.capacity).map((d) => ({ d, kind: ja.kind.shelter })),
+  ]
+  const src = published[0]?.d.capacity!.source
   return (
     <div className="grid grid-cols-1 items-start gap-1 text-base sm:grid-cols-[10rem_1fr] sm:gap-3">
       <dt>{t.axes.capacity}</dt>
       <dd className="m-0 rounded border border-line p-2">
         <p className="m-0 font-bold">{t.capacityNotScored}</p>
-        <p className="m-0 mt-1 text-sm">{persons === null ? t.capacityUnknown : t.capacityPersons(persons)}</p>
+        {published.length > 0 && (
+          <div className="mt-1 text-sm">
+            <p className="m-0 text-ink-soft">{t.capacityPublishedLabel}</p>
+            <ul className="m-0 list-none p-0">
+              {published.map(({ d, kind }) => (
+                <li key={d.source_id} className="mt-0.5">
+                  {t.capacityPublished(d.name, d.capacity!.persons, kind)}
+                  {d.capacity!.raw.normalize('NFKC').replace(/[,人名\s]/g, '') !== String(d.capacity!.persons) && (
+                    <span className="block text-ink-soft">{t.capacityRaw(d.capacity!.raw)}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <p className="m-0 mt-1 text-ink-soft">{t.capacityPublishedNote}</p>
+            <p className="m-0 mt-1 text-ink-soft">
+              {t.capacitySource(src!)}{' '}
+              <a href={src!.page_url} target="_blank" rel="noreferrer">{src!.publisher}</a>
+            </p>
+          </div>
+        )}
+        <p className="m-0 mt-1 text-sm">
+          {published.length > 0 && <span className="mr-2 text-ink-soft">{t.capacityPostedLabel}</span>}
+          {persons === null ? t.capacityUnknown : t.capacityPersons(persons)}
+        </p>
         {perPerson !== null && <p className="m-0 mt-1 text-sm">{t.capacityPerPerson(perPerson)}</p>}
         <p className="m-0 mt-1 text-sm text-ink-soft">{t.capacityNote}</p>
       </dd>
