@@ -7,6 +7,8 @@ export interface MapFilter {
   states: DisplayState[]
   /** 'none' なら、冷房なし（主要滞在スペースの冷房が「なし」で確定）の施設だけ */
   ac: 'all' | 'none'
+  /** 'only' なら、指定された災害種別がその災害の想定区域と重なっている施設だけ（軸A が「要確認」） */
+  overlap: 'all' | 'only'
 }
 
 export interface MapFeature {
@@ -62,6 +64,7 @@ export function clusterCountAttributes(filter: MapFilter): (string | string[])[]
     attrs.push(filter.states.map((s) => `s${DISPLAY_STATES.indexOf(s)}`))
   }
   if (filter.ac === 'none') attrs.push('acn')
+  if (filter.overlap === 'only') attrs.push('hm')
   return attrs
 }
 

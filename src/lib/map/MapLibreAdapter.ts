@@ -30,7 +30,7 @@ const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(
 
 export class MapLibreAdapter implements MapAdapter {
   private map: MapLibreMap | null = null
-  private filter: MapFilter = { kind: 'all', hazard: 'all', states: [...DISPLAY_STATES], ac: 'all' }
+  private filter: MapFilter = { kind: 'all', hazard: 'all', states: [...DISPLAY_STATES], ac: 'all', overlap: 'all' }
   private selectedId: string | null = null
   private selectCallback: ((f: MapFeature | null) => void) | null = null
   private loaded = false
@@ -180,7 +180,7 @@ export class MapLibreAdapter implements MapAdapter {
   private applyFilter() {
     const map = this.map
     if (!map || !this.loaded) return
-    const { kind, hazard, states, ac } = this.filter
+    const { kind, hazard, states, ac, overlap } = this.filter
 
     // 個別の点：属性そのもので正確に絞り込める
     const pointConds: ExpressionSpecification[] = [
@@ -191,6 +191,7 @@ export class MapLibreAdapter implements MapAdapter {
     if (kind === 'shelter') pointConds.push(['>', ['get', 'ns'], 0])
     if (hazard !== 'all') pointConds.push(['>', ['get', `h${HAZARD_KEYS.indexOf(hazard)}`], 0])
     if (ac === 'none') pointConds.push(['==', ['get', 'ac'], 'none'])
+    if (overlap === 'only') pointConds.push(['>', ['get', 'hm'], 0])
     map.setFilter(LAYER_POINTS, ['all', ...pointConds] as FilterSpecification)
 
     // まとめ表示：合算済みの属性から件数を出す。条件が 2 つ以上重なると正確な件数は求められないので、

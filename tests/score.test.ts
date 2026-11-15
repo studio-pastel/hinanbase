@@ -159,17 +159,19 @@ describe('軸D：緊急輸送道路までの距離と敷地内備蓄', async () 
 describe('まとめ表示の件数に使う属性', async () => {
   const { clusterCountAttributes, isClusterCountUnavailable } = await import('../src/lib/map/MapAdapter.ts')
   const all = ['unknown', 'critical', 'poor', 'fair', 'good'] as const
-  const base: MapFilter = { kind: 'all', hazard: 'all', states: [...all], ac: 'all' }
+  const base: MapFilter = { kind: 'all', hazard: 'all', states: [...all], ac: 'all', overlap: 'all' }
   it('条件なしなら全件数、条件が1つならその属性の合計', () => {
     expect(clusterCountAttributes(base)).toEqual([])
     expect(clusterCountAttributes({ ...base, ac: 'none' })).toEqual(['acn'])
     expect(clusterCountAttributes({ ...base, kind: 'shelter' })).toEqual(['ns'])
+    expect(clusterCountAttributes({ ...base, overlap: 'only' })).toEqual(['hm'])
     expect(clusterCountAttributes({ ...base, kind: 'emergency', hazard: 'tsunami' })).toEqual(['h4'])
     expect(clusterCountAttributes({ ...base, states: ['critical', 'poor'] })).toEqual([['s1', 's2']])
   })
   it('条件が2つ以上重なると、正確な件数は出せない', () => {
     expect(isClusterCountUnavailable({ ...base, ac: 'none' })).toBe(false)
     expect(isClusterCountUnavailable({ ...base, ac: 'none', kind: 'shelter' })).toBe(true)
+    expect(isClusterCountUnavailable({ ...base, overlap: 'only', hazard: 'flood' })).toBe(true)
     expect(isClusterCountUnavailable({ ...base, kind: 'shelter', hazard: 'flood' })).toBe(true)
   })
 })

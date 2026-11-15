@@ -11,7 +11,7 @@ const tilesUrl = `${DATA_BASE_URL || window.location.origin}/tiles/shelters.pmti
 
 export function MapPage() {
   const national = useNational()
-  const [filter, setFilter] = useState<MapFilter>({ kind: 'all', hazard: 'all', states: [...DISPLAY_STATES], ac: 'all' })
+  const [filter, setFilter] = useState<MapFilter>({ kind: 'all', hazard: 'all', states: [...DISPLAY_STATES], ac: 'all', overlap: 'all' })
   const [selected, setSelected] = useState<MapFeature | null>(null)
   const [panelOpen, setPanelOpen] = useState(() => window.matchMedia('(min-width: 768px)').matches)
 
@@ -81,6 +81,20 @@ export function MapPage() {
               {filter.ac === 'none' ? ja.map.acNoneOn : ja.map.acNone}
             </button>
             {filter.ac === 'none' && <p className="m-0 mt-1 text-sm text-ink-soft">{ja.map.acNoneHelp}</p>}
+            {/* 表示状態は設備の回答が集まるまでグレーのままなので、想定区域との重なりは別の絞り込みで探せるようにする（DATA_NOTES 12.3） */}
+            <button
+              type="button"
+              aria-pressed={filter.overlap === 'only'}
+              onClick={() => setFilter({ ...filter, overlap: filter.overlap === 'only' ? 'all' : 'only' })}
+              className={
+                filter.overlap === 'only'
+                  ? 'mt-2 w-full rounded border-2 border-ink bg-ink px-3 py-2 text-base font-bold text-white'
+                  : 'mt-2 w-full rounded border-2 border-ink bg-white px-3 py-2 text-base font-bold'
+              }
+            >
+              {filter.overlap === 'only' ? ja.map.overlapOnlyOn : ja.map.overlapOnly}
+            </button>
+            {filter.overlap === 'only' && <p className="m-0 mt-1 text-sm text-ink-soft">{ja.map.overlapOnlyHelp}</p>}
           </div>
           <div id="filter-panel" hidden={!panelOpen} className="space-y-4 px-4 pb-4 text-base">
             <FilterControls filter={filter} onChange={setFilter} />
