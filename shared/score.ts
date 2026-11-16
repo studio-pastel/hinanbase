@@ -117,11 +117,12 @@ export function logisticsScore(road: RoadAccess | undefined, stockpile: AmenityV
 }
 
 /** 軸B：点数は出さない（DATA_NOTES D-22）。公表されている収容人数と、そろっていれば 1 人あたり面積を参考値として残す */
-export function capacityReference(persons: AmenityValue | undefined, area: AmenityValue | undefined) {
+export function capacityReference(persons: AmenityValue | undefined, area: AmenityValue | undefined, toilets?: AmenityValue) {
   const num = (v: AmenityValue | undefined) =>
     v && v.confidence !== 'disputed' && typeof v.value === 'number' && Number.isFinite(v.value) && v.value > 0 ? v.value : null
   const p = num(persons)
   const a = num(area)
+  const t = num(toilets)
   return {
     status: 'not_scored',
     reason: '点数は出さない。公開データに有効面積がなく、収容人数の算出の前提も自治体ごとに違うため',
@@ -129,6 +130,9 @@ export function capacityReference(persons: AmenityValue | undefined, area: Ameni
     capacity_area_sqm: a,
     per_person_sqm: p !== null && a !== null ? round1(a / p) : null,
     reference_lines_sqm: { conventional: 2.0, sphere: 3.5 },
+    // トイレの参照線（スフィア基準：20 人に 1 基）。人数とトイレ総数の両方がそろった施設にだけ出す。点数にはしない
+    toilet_total: t,
+    toilets_sphere_reference: p !== null && t !== null ? Math.ceil(p / 20) : null,
   }
 }
 
@@ -186,7 +190,7 @@ export function computeScores(
         source: '「ハザードマップポータルサイト」を加工して作成',
         uncheckable: HAZARD_KEYS.filter((k) => !ZONE_CHECKABLE.includes(k)),
       },
-      capacity: capacityReference(amenities.capacity_persons, amenities.capacity_area_sqm),
+      capacity: capacityReference(amenities.capacity_persons, amenities.capacity_area_sqm, amenities.toilet_total),
       logistics: logistics.breakdown,
       habitability:
         habitability === null
@@ -207,4 +211,70 @@ export function computeScores(
       },
     },
   }
+}
+
+/**
+ * 算出根拠（breakdown）を小さく保存するための変換。
+ * 式・注記・出典のように多くの施設で同じになる文章を、市区町村 JSON の表（breakdown_texts）に 1 回だけ置き、
+ * 各施設の breakdown からは { $t: 番号 } で参照する。内容は 1 文字も落とさない（expandBreakdown で元に戻る）。
+ * 最寄りの道路（road）は施設の road と同じ内容なので、breakdown からは外し、戻すときに入れ直す。
+ * さらに、軸ごとの根拠がまるごと同じ施設が複数ある場合（設備情報がない施設の軸B・C など）は、
+ * shared に渡された軸の内容を表に置き、軸そのものを { $t: 番号 } で参照する。
+ */
+const TABLE_MIN_LENGTH = 20
+const TABLE_KEYS = ['uncheckable', 'reference_lines_sqm']
+type TextRef = { $t: number }
+const isRef = (v: unknown): v is TextRef => typeof v === 'object' && v !== null && typeof (v as TextRef).$t === 'number' && Object.keys(v).length === 1
+
+/** 軸ごとの根拠が同じかどうかを比べるための鍵（road は施設ごとに持つので除く） */
+export function axisKey(axis: string, value: unknown): string {
+  if (axis === 'logistics' && typeof value === 'object' && value !== null) {
+    return `${axis}:${JSON.stringify(Object.fromEntries(Object.entries(value).filter(([k]) => k !== 'road')))}`
+  }
+  return `${axis}:${JSON.stringify(value)}`
+}
+
+export function compactBreakdown(
+  breakdown: Record<string, unknown>,
+  table: unknown[],
+  index: Map<string, number>,
+  shared?: Set<string>,
+): Record<string, unknown> {
+  const put = (v: unknown) => {
+    const key = JSON.stringify(v)
+    let n = index.get(key)
+    if (n === undefined) {
+      n = table.push(v) - 1
+      index.set(key, n)
+    }
+    return { $t: n }
+  }
+  const out: Record<string, unknown> = {}
+  for (const [axis, value] of Object.entries(breakdown)) {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) { out[axis] = value; continue }
+    const o: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(value)) {
+      if (axis === 'logistics' && k === 'road') continue
+      if ((typeof v === 'string' && v.length >= TABLE_MIN_LENGTH) || TABLE_KEYS.includes(k)) {
+        o[k] = put(v)
+      } else o[k] = v
+    }
+    out[axis] = shared?.has(axisKey(axis, value)) ? put(o) : o
+  }
+  return out
+}
+
+/** compactBreakdown で小さくした算出根拠を、元の形に戻す。小さくしていない古いデータはそのまま返る */
+export function expandBreakdown(breakdown: Record<string, unknown>, table: unknown[] | undefined, road?: RoadAccess): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [axis, value] of Object.entries(breakdown)) {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) { out[axis] = value; continue }
+    // 軸がまるごと表にある場合は、先に取り出す
+    const axisValue = isRef(value) && table ? (table[value.$t] as Record<string, unknown>) : (value as Record<string, unknown>)
+    const o: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(axisValue)) o[k] = isRef(v) && table ? table[v.$t] : v
+    if (axis === 'logistics' && road && !('road' in o)) o.road = road
+    out[axis] = o
+  }
+  return out
 }

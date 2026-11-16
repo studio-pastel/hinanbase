@@ -112,7 +112,7 @@ export function ListFacilitiesPage() {
                     {s.length > 0 && <span className="rounded border border-line px-1.5">{ja.kind.shelter}</span>}
                     {restrictedOnly && <span className="rounded border border-ink px-1.5 font-bold">{ja.kind.restrictedShort}</span>}
                   </div>
-                  {(isOverlap(f) || (f.road && f.road.distance_m !== null)) && (
+                  {(isOverlap(f) || (f.road && f.road.distance_m !== null && f.road.land !== 'no_road')) && (
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                       {isOverlap(f) && (
                         <span className="rounded border-2 border-state-critical px-1.5 font-bold">
@@ -120,7 +120,7 @@ export function ListFacilitiesPage() {
                           {ja.list.overlapBadge(f.scores.hazard_check.overlap.map((k) => ja.hazard.names[k]).join('、'))}
                         </span>
                       )}
-                      {f.road && f.road.distance_m !== null && <span className="text-ink-soft">{ja.list.roadBadge(f.road.distance_m)}</span>}
+                      {f.road && f.road.distance_m !== null && f.road.land !== 'no_road' && <span className="text-ink-soft">{ja.list.roadBadge(f.road.distance_m)}</span>}
                     </div>
                   )}
                 </li>

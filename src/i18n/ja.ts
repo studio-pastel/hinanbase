@@ -135,10 +135,12 @@ export const ja = {
     capacityPersons: (n: number) => `想定収容人数：${n.toLocaleString('ja-JP')} 人`,
     capacityPerPerson: (sqm: number) => `1 人あたり面積（参考）：${sqm}㎡（参照線：2.0㎡＝国内の従来想定／3.5㎡＝スフィア基準）`,
     capacityUnknown: '想定収容人数：未確認',
+    capacityToilets: (have: number, ref: number) => `トイレ：${have} 基（参照線：スフィア基準の「20 人に 1 基」では ${ref} 基）`,
     capacityPostedLabel: '投稿による値',
     capacityPublishedLabel: '自治体の公表値',
     capacityPublished: (name: string, n: number, kind: string) => `${name}：${n.toLocaleString('ja-JP')} 人（${kind}として）`,
     capacityRaw: (raw: string) => `もとの記載：${raw}`,
+    capacityListedName: (name: string) => `自治体の一覧での名称：${name}`,
     capacitySource: (s: { publisher: string; title: string; license: string; fetched_date: string }) => `出典：${s.publisher}「${s.title}」（${s.license}）を加工して作成。取得日 ${s.fetched_date}`,
     capacityPublishedNote: '公表値は、屋外の広場などを含む「緊急避難場所」としての人数の場合があり、避難生活を送れる人数とは限りません。数え方は自治体ごとに違います。',
     road: {

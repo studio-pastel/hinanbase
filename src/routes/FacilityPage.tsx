@@ -1,5 +1,6 @@
 import { Link, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
+import { expandBreakdown } from '../../shared/score.ts'
 import { HAZARD_KEYS, type AmenityValue, type Facility } from '../../shared/types.ts'
 import { DisputeForm, History } from '../components/Community.tsx'
 import { Status } from '../components/Layout.tsx'
@@ -65,7 +66,7 @@ export function FacilityPage() {
       />
 
       <Designations facility={facility} />
-      <ScoreBars facility={facility} />
+      <ScoreBars facility={facility} texts={muni.data?.breakdown_texts} />
       <Amenities facility={facility} muniKey={muniKey} />
       {supabase && <History facilityId={facility.id} />}
 
@@ -156,8 +157,10 @@ function SourceId({ id }: { id: string }) {
   return <p className="m-0 mt-1 text-sm text-ink-soft">{ja.kind.sourceIdLabel}：{id}</p>
 }
 
-function ScoreBars({ facility }: { facility: Facility }) {
+function ScoreBars({ facility, texts }: { facility: Facility; texts: unknown[] | undefined }) {
   const { scores } = facility
+  // 保存時に表へ移した文章（式・注記・出典）を戻して、根拠の全文を表示する
+  const breakdown = expandBreakdown(scores.breakdown, texts, facility.road)
   return (
     <section aria-labelledby="scores-h">
       <h2 id="scores-h" className="m-0 text-xl font-bold">{ja.facility.scores}</h2>
@@ -168,7 +171,7 @@ function ScoreBars({ facility }: { facility: Facility }) {
           // 軸A は点数を出さず、想定区域との重なりの有無を文で示す（SPEC §3.2）
           if (axis === 'hazard') return <HazardAxis key={axis} check={scores.hazard_check} sites={facility.designations.emergency_site} />
           // 軸B も点数を出さない。公表されている収容人数だけを示す（DATA_NOTES D-22）
-          if (axis === 'capacity') return <CapacityAxis key={axis} facility={facility} />
+          if (axis === 'capacity') return <CapacityAxis key={axis} facility={facility} capacity={breakdown.capacity} />
           return (
             <div key={axis} className="grid grid-cols-1 items-center gap-1 text-base sm:grid-cols-[10rem_1fr] sm:gap-3">
               <dt>{ja.facility.axes[axis]}</dt>
@@ -197,16 +200,17 @@ function ScoreBars({ facility }: { facility: Facility }) {
       </dl>
       <details className="mt-2 rounded border border-line bg-surface p-3 text-base">
         <summary className="cursor-pointer font-bold">{ja.facility.breakdown}</summary>
-        <p className="m-0 mt-2">{ja.facility.methodVersion}：{String(scores.breakdown.method_version ?? '')}</p>
-        <pre className="m-0 mt-2 overflow-x-auto whitespace-pre-wrap rounded bg-paper p-2 text-sm">{JSON.stringify(scores.breakdown, null, 2)}</pre>
+        <p className="m-0 mt-2">{ja.facility.methodVersion}：{String(breakdown.method_version ?? '')}</p>
+        <pre className="m-0 mt-2 overflow-x-auto whitespace-pre-wrap rounded bg-paper p-2 text-sm">{JSON.stringify(breakdown, null, 2)}</pre>
       </details>
     </section>
   )
 }
 
-function CapacityAxis({ facility }: { facility: Facility }) {
+function CapacityAxis({ facility, capacity }: { facility: Facility; capacity: unknown }) {
   const t = ja.facility
-  const ref = facility.scores.breakdown.capacity as { capacity_persons?: number | null; per_person_sqm?: number | null } | undefined
+  // 表に移した内容を戻したあとの根拠を使う（保存時は軸ごと参照になっていることがある）
+  const ref = capacity as { capacity_persons?: number | null; per_person_sqm?: number | null; toilet_total?: number | null; toilets_sphere_reference?: number | null } | undefined
   const persons = ref?.capacity_persons ?? null
   const perPerson = ref?.per_person_sqm ?? null
   // 自治体の公表値は指定ごとに持つ。何の人数か（緊急避難場所／指定避難所）を添えて出す（DATA_NOTES D-28）
@@ -230,6 +234,9 @@ function CapacityAxis({ facility }: { facility: Facility }) {
                   {d.capacity!.raw.normalize('NFKC').replace(/[,人名\s]/g, '') !== String(d.capacity!.persons) && (
                     <span className="block text-ink-soft">{t.capacityRaw(d.capacity!.raw)}</span>
                   )}
+                  {d.capacity!.listed_name && d.capacity!.listed_name.normalize('NFKC').replace(/\s+/g, '') !== d.name.normalize('NFKC').replace(/\s+/g, '') && (
+                    <span className="block text-ink-soft">{t.capacityListedName(d.capacity!.listed_name)}</span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -245,6 +252,9 @@ function CapacityAxis({ facility }: { facility: Facility }) {
           {persons === null ? t.capacityUnknown : t.capacityPersons(persons)}
         </p>
         {perPerson !== null && <p className="m-0 mt-1 text-sm">{t.capacityPerPerson(perPerson)}</p>}
+        {ref?.toilet_total != null && ref.toilets_sphere_reference != null && (
+          <p className="m-0 mt-1 text-sm">{t.capacityToilets(ref.toilet_total, ref.toilets_sphere_reference)}</p>
+        )}
         <p className="m-0 mt-1 text-sm text-ink-soft">{t.capacityNote}</p>
       </dd>
     </div>

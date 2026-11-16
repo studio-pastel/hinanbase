@@ -36,6 +36,13 @@ describe('自治体の収容人数 CSV の読み取り', () => {
     expect(b[0]).toMatchObject({ sourceId: 'E2432400003201', persons: 7670, alsoShelter: null })
     expect(readCapacityRows('名称,住所\nA,B\n')).toBeNull()
   })
+  it('見出しの中の改行を無視する。見出しに書かれた算出の前提は、もとの記載に添える', () => {
+    expect(readCapacityRows('名称,"想定\n収容人数"\n中央公民館,1710\n')![0]).toMatchObject({ persons: 1710, raw: '1710' })
+    expect(readCapacityRows('名称,収容人員（一人当たり３㎡）\n福祉センター,120\n')![0]).toMatchObject({ persons: 120, raw: '120（一人当たり3m2）' })
+  })
+  it('収容人数の列が種類ごとに分かれている場合は読まない（どれを使うか決められない）', () => {
+    expect(readCapacityRows('名称,収容人数（一時避難）,収容人数（滞在避難）\n田原小学校体育館,903人,436人\n')).toBeNull()
+  })
 })
 
 describe('収容人数の行と施設の突き合わせ', () => {
@@ -50,6 +57,7 @@ describe('収容人数の行と施設の突き合わせ', () => {
   it('「〇〇市立」の有無と、ケ・ヶの違いは同じ名称とみなす', () => {
     expect(looseName('長岡京市立神足小学校')).toBe(looseName('神足小学校'))
     expect(looseName('松ケ崎公民館')).toBe(looseName('松ヶ崎公民館'))
+    expect(looseName('旧勤労青少年ホ－ム')).toBe(looseName('旧勤労青少年ホーム'))
   })
   it('共通ID が一致すれば、名称や位置にかかわらず対応づける', () => {
     const { matched } = matchCapacity([r('別の名前', null, null, 'E2620900003111')], fs)
@@ -64,6 +72,15 @@ describe('収容人数の行と施設の突き合わせ', () => {
     const { matched, unmatched } = matchCapacity([r('神足小学校', 34.95, 135.70), r('神足中学校', 34.9230, 135.6970)], fs)
     expect(matched).toHaveLength(0)
     expect(unmatched).toHaveLength(2)
+  })
+  it('一覧での名称が施設の名称に含まれるだけの場合は、100m 以内のときだけ対応づける', () => {
+    const g = [facility('E4420200001111', '鳥越公民館　集会室', 33.2617, 131.5067)]
+    expect(matchCapacity([r('鳥越公民館', 33.2617, 131.5067)], g).matched[0]).toMatchObject({ method: 'name_contains_and_location' })
+    expect(matchCapacity([r('鳥越公民館', 33.2637, 131.5067)], g).matched).toHaveLength(0)
+    expect(matchCapacity([r('公民館', 33.2617, 131.5067)], g).matched).toHaveLength(0)
+    // 一覧のほうが細かい名称（グラウンド、部屋）は、建物全体の人数ではないので対応づけない
+    const h = [facility('E4220900001111', '豊玉中学校', 34.4, 129.3), facility('E4420500001111', '鶴岡小学校　屋上', 32.9, 131.9)]
+    expect(matchCapacity([r('豊玉中学校グラウンド', 34.4, 129.3), r('鶴岡小学校（体育館）', 32.9, 131.9)], h).matched).toHaveLength(0)
   })
   it('座標がない行は、同名の施設が 1 つだけのときに限って対応づける', () => {
     expect(matchCapacity([r('松ケ崎公民館', null, null)], fs).matched[0]).toMatchObject({ method: 'name_only' })

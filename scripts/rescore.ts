@@ -3,7 +3,7 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import amenityDefs from '../config/amenity-defs.json' with { type: 'json' }
-import { computeScores, type ScoringDef } from '../shared/score.ts'
+import { axisKey, compactBreakdown, computeScores, type ScoringDef } from '../shared/score.ts'
 import { DISPLAY_STATES, HAZARD_KEYS, type AmenityValue, type MuniFile, type MuniIndexFile } from '../shared/types.ts'
 import { hazardMask, isRestrictedOnly, kindFlags } from './lib/facility.ts'
 import { BUILD_DIR, FACILITIES_NDJSON, INTERMEDIATE_DIR } from './lib/paths.ts'
@@ -86,10 +86,25 @@ for (const file of readdirSync(muniDir).sort()) {
   const path = join(muniDir, file)
   const muni = JSON.parse(readFileSync(path, 'utf8')) as MuniFile
   let changed = false
-  for (const f of muni.facilities) {
+  // 多くの施設で同じになる文章は、市区町村ごとの表に 1 回だけ置く（データを小さくするため。内容は落とさない）
+  const texts: unknown[] = []
+  const textIndex = new Map<string, number>()
+  // 先に全施設を算出し、軸ごとの根拠がまるごと同じ施設が 2 つ以上あるものを調べる（それらは表に 1 回だけ置く）
+  const fullScores = muni.facilities.map((f) => computeScores(amenities.get(f.id) ?? {}, defs, f.designations.emergency_site, f.road))
+  const seen = new Map<string, number>()
+  for (const s of fullScores) {
+    for (const [axis, value] of Object.entries(s.breakdown)) {
+      if (typeof value !== 'object' || value === null) continue
+      const k = axisKey(axis, value)
+      seen.set(k, (seen.get(k) ?? 0) + 1)
+    }
+  }
+  const shared = new Set([...seen].filter(([, n]) => n >= 2).map(([k]) => k))
+  for (const [i, f] of muni.facilities.entries()) {
     const next = amenities.get(f.id) ?? {}
     if (amenities.has(f.id)) used.add(f.id)
-    const scores = computeScores(next, defs, f.designations.emergency_site, f.road)
+    const full = fullScores[i]!
+    const scores = { ...full, breakdown: compactBreakdown(full.breakdown, texts, textIndex, shared) }
     if (JSON.stringify(f.amenities) !== JSON.stringify(next) || JSON.stringify(f.scores) !== JSON.stringify(scores)) {
       f.amenities = next
       f.scores = scores
@@ -112,7 +127,11 @@ for (const file of readdirSync(muniDir).sort()) {
       type: 'Feature', geometry: { type: 'Point', coordinates: [f.lng, f.lat] }, properties: tileProps(f, muni.muni_key),
     }))
   }
+  if (JSON.stringify(muni.breakdown_texts ?? []) !== JSON.stringify(texts)) changed = true
   if (changed) {
+    // facilities より前に置く（読み込み順は関係ないが、ファイルを見たときに分かりやすい）
+    const { facilities, ...head } = muni
+    Object.assign(muni, { ...head, breakdown_texts: texts, facilities })
     muni.generated_at = now
     writeFileSync(path, JSON.stringify(muni))
     changedMunis++

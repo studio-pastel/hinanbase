@@ -75,10 +75,31 @@ function getTile(layer: string, z: number, x: number, y: number): Promise<Buffer
 }
 
 const decoded = new Map<string, PNG>()
-function alphaAt(key: string, buf: Buffer, px: number, py: number): number {
+/** PNG を読む。末尾に余分なデータが付いたタイルがあるので、読めなければ IEND までで切って読み直す。それでも読めなければ undefined */
+export function readPng(buf: Buffer): PNG | undefined {
+  try {
+    return PNG.sync.read(buf)
+  } catch {
+    const end = buf.indexOf(Buffer.from([0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]))
+    if (end < 0) return undefined
+    try {
+      return PNG.sync.read(buf.subarray(0, end + 8))
+    } catch {
+      return undefined
+    }
+  }
+}
+const unreadable = new Set<string>()
+/** 地点の画素の不透明度。タイルが読めなければ undefined（「色なし」として扱わない） */
+function alphaAt(key: string, buf: Buffer, px: number, py: number): number | undefined {
   let png = decoded.get(key)
   if (!png) {
-    png = PNG.sync.read(buf)
+    png = readPng(buf)
+    if (!png) {
+      if (!unreadable.has(key)) console.log(`  読めないタイル: ${key}（${buf.length} バイト）`)
+      unreadable.add(key)
+      return undefined
+    }
     if (decoded.size > 400) decoded.clear()
     decoded.set(key, png)
   }
@@ -93,10 +114,20 @@ async function check(hazard: HazardKey, lat: number, lng: number): Promise<ZoneR
     const coarse = await getTile(layer, COARSE_ZOOM, c.x, c.y)
     if (coarse === undefined) { failed = true; continue }
     if (coarse === null) continue // この一帯にデータなし
-    const t = tileOf(lat, lng, ZOOM)
-    const tile = await getTile(layer, ZOOM, t.x, t.y)
-    if (tile === undefined) { failed = true; continue }
-    if (tile !== null && alphaAt(`${layer}/${ZOOM}/${t.x}/${t.y}`, tile, t.px, t.py) > 0) return 'in'
+    // 配信元のタイルが壊れていて読めない場合は、1 段細かいズーム、1 段粗いズームの順に試す
+    let result: 'in' | 'none' | undefined
+    for (const z of [ZOOM, ZOOM + 1, ZOOM - 1]) {
+      const t = tileOf(lat, lng, z)
+      const tile = await getTile(layer, z, t.x, t.y)
+      if (tile === undefined) break
+      if (tile === null) { result = 'none'; break }
+      const alpha = alphaAt(`${layer}/${z}/${t.x}/${t.y}`, tile, t.px, t.py)
+      if (alpha === undefined) continue
+      result = alpha > 0 ? 'in' : 'none'
+      break
+    }
+    if (result === undefined) { failed = true; continue }
+    if (result === 'in') return 'in'
   }
   return failed ? undefined : 'none'
 }

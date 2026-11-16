@@ -158,6 +158,10 @@ describe('軸D：緊急輸送道路までの距離と敷地内備蓄', async () 
     expect(s.capacity).toBeNull()
     expect(s.breakdown.capacity).toMatchObject({ status: 'not_scored', capacity_persons: 400, per_person_sqm: 2.3 })
     expect(capacityReference(v(400), undefined).per_person_sqm).toBeNull()
+    // トイレの参照線（20 人に 1 基）も、人数とトイレ総数がそろったときだけ
+    expect(capacityReference(v(410), undefined, v(12))).toMatchObject({ toilet_total: 12, toilets_sphere_reference: 21 })
+    expect(capacityReference(v(410), undefined).toilets_sphere_reference).toBeNull()
+    expect(capacityReference(undefined, undefined, v(12)).toilets_sphere_reference).toBeNull()
     expect(capacityReference(v(0), v(900)).per_person_sqm).toBeNull()
   })
 })
@@ -220,8 +224,54 @@ describe('軸A：想定区域との重なり（点数は出さない）', async 
     expect(s.display_state).toBe('critical')
     expect(computeScores({}, defs, [{ hazards: { ...none, flood: true }, zone: { flood: 'in' } }]).display_state).toBe('unknown')
   })
+  it('末尾に余分なデータが付いたタイルも読む。画像でないデータは読めないものとして扱う（止まらない）', async () => {
+    const { PNG } = await import('pngjs')
+    const { readPng } = await import('../scripts/fetch-hazards.ts')
+    const png = new PNG({ width: 2, height: 2 })
+    png.data.fill(255)
+    const buf = PNG.sync.write(png)
+    expect(readPng(buf)?.width).toBe(2)
+    expect(readPng(Buffer.concat([buf, Buffer.from('extra')]))?.data[3]).toBe(255)
+    expect(readPng(Buffer.from('<html>error</html>'))).toBeUndefined()
+  })
   it('緯度経度からタイル番号と画素の位置を求める', () => {
     expect(tileOf(35.6727, 139.8171, 15)).toEqual({ x: 29110, y: 12904, px: 118, py: 70 })
     expect(tileOf(35.6727, 139.8171, 10)).toMatchObject({ x: 909, y: 403 })
+  })
+})
+
+describe('算出根拠を小さく保存する', async () => {
+  const { compactBreakdown, expandBreakdown } = await import('../shared/score.ts')
+  const road = { distance_m: 300, searched_m: 20000, class: 1, road_type: 3, name: '国道4号', source_ym: '2016 03' }
+  const none = { flood: false, landslide: false, storm_surge: false, earthquake: false, tsunami: false, fire: false, inland_flood: false, volcano: false }
+  const full = computeScores({ aircon_main_hall: v('partial'), stockpile_onsite: v(true) }, defs, [{ hazards: { ...none, flood: true }, zone: { flood: 'in' } }], road)
+
+  it('小さくしてから戻すと、元の根拠と 1 文字も違わない', () => {
+    const table: unknown[] = []
+    const compact = compactBreakdown(full.breakdown, table, new Map())
+    expect(JSON.stringify(compact).length).toBeLessThan(JSON.stringify(full.breakdown).length)
+    expect(expandBreakdown(compact, table, road)).toEqual(full.breakdown)
+  })
+  it('同じ文章は表に 1 回だけ入る', () => {
+    const table: unknown[] = []
+    const index = new Map<string, number>()
+    compactBreakdown(full.breakdown, table, index)
+    const n = table.length
+    compactBreakdown(full.breakdown, table, index)
+    expect(table).toHaveLength(n)
+  })
+  it('軸の根拠がまるごと同じ施設どうしは、軸ごと表に置く。戻せば元どおり', async () => {
+    const { axisKey } = await import('../shared/score.ts')
+    const table: unknown[] = []
+    const shared = new Set(Object.entries(full.breakdown).filter(([, x]) => typeof x === 'object').map(([a, x]) => axisKey(a, x)))
+    const compact = compactBreakdown(full.breakdown, table, new Map(), shared)
+    expect(compact.capacity).toEqual({ $t: expect.any(Number) })
+    expect(compact.logistics).toEqual({ $t: expect.any(Number) })
+    expect(expandBreakdown(compact, table, road)).toEqual(full.breakdown)
+    // 道路が違う施設でも、道路以外が同じなら同じ鍵になる
+    expect(axisKey('logistics', { a: 1, road: { distance_m: 1 } })).toBe(axisKey('logistics', { a: 1, road: { distance_m: 2 } }))
+  })
+  it('小さくしていない古いデータは、そのまま表示できる', () => {
+    expect(expandBreakdown(full.breakdown, undefined, road)).toEqual(full.breakdown)
   })
 })

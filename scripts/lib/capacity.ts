@@ -66,7 +66,8 @@ export function parsePersons(raw: string): number | null {
 
 const find = (header: string[], ...patterns: RegExp[]) => {
   for (const p of patterns) {
-    const i = header.findIndex((h) => p.test(h.trim()))
+    // 見出しの中の改行や空白は無視する（「想定\n収容人数」など）
+    const i = header.findIndex((h) => p.test(h.normalize('NFKC').replace(/\s+/g, '')))
     if (i >= 0) return i
   }
   return -1
@@ -77,10 +78,12 @@ export function readCapacityRows(text: string): CapacityRow[] | null {
   const rows = parseCsv(text)
   const header = rows[0] ?? []
   const col = {
-    name: find(header, /^名称$/, /^施設名$/),
+    name: find(header, /^名称$/, /^施設名$/, /^施設・場所名$/),
     lat: find(header, /^緯度$/),
     lng: find(header, /^経度$/),
-    persons: find(header, /^想定収容人数$/, /^収容人数$/),
+    // 「収容人員(一人当たり3m2)」のように、見出しに算出の前提が書かれている場合がある。
+    // 「収容人数(一時避難)」「収容人数(滞在避難)」のように種類が分かれている場合は、どれを使うか決められないので読まない
+    persons: find(header, /^想定収容人数$/, /^収容人数$/, /^収容人員(\(一人当たり[^)]*\))?$/),
     sourceId: find(header, /共通ID/),
     also: find(header, /^指定避難所との重複$/),
   }
@@ -89,15 +92,18 @@ export function readCapacityRows(text: string): CapacityRow[] | null {
     const n = Number((v ?? '').trim())
     return (v ?? '').trim() !== '' && Number.isFinite(n) ? n : null
   }
+  // 見出しに算出の前提が書かれていれば、もとの記載に添える
+  const basis = (header[col.persons] ?? '').normalize('NFKC').replace(/\s+/g, '').match(/\((一人当たり[^)]*)\)/)?.[1]
   return rows.slice(1).map((r) => {
-    const raw = (r[col.persons] ?? '').trim()
+    const value = (r[col.persons] ?? '').trim()
+    const raw = basis && value !== '' ? `${value}（${basis}）` : value
     const sid = col.sourceId >= 0 ? (r[col.sourceId] ?? '').trim() : ''
     return {
       name: (r[col.name] ?? '').trim(),
       lat: col.lat >= 0 ? num(r[col.lat]) : null,
       lng: col.lng >= 0 ? num(r[col.lng]) : null,
       sourceId: /^E\d{10}[0-9A-Z]{3}$/.test(sid) ? sid : null,
-      persons: parsePersons(raw),
+      persons: parsePersons(value),
       raw,
       alsoShelter: col.also >= 0 ? /^(1|○|〇|有|あり)$/.test((r[col.also] ?? '').trim()) : null,
     }
@@ -106,10 +112,10 @@ export function readCapacityRows(text: string): CapacityRow[] | null {
 
 /**
  * 自治体の CSV と国土地理院のデータで揺れやすい書き方をそろえた名称。
- * 「長岡京市立神足小学校」と「神足小学校」、「松ケ崎」と「松ヶ崎」を同じとみなす。位置が近い場合の照合にだけ使う。
+ * 「長岡京市立神足小学校」と「神足小学校」、「松ケ崎」と「松ヶ崎」、「ホ－ム」と「ホーム」を同じとみなす。位置が近い場合の照合にだけ使う。
  */
 export function looseName(s: string): string {
-  return normalizeName(s).replace(/^[^立]{1,8}[都道府県市区町村]立/, '').replace(/[ヶケが]/g, 'ケ')
+  return normalizeName(s).replace(/^[^立]{1,8}[都道府県市区町村]立/, '').replace(/[ヶケが]/g, 'ケ').replace(/[-‐−–—ｰ]/g, 'ー')
 }
 
 /**
@@ -128,19 +134,37 @@ export function pickDesignation(row: CapacityRow, f: Facility): EmergencyDesigna
   const l = looseName(row.name)
   const same = all.filter((d) => normalizeName(d.name) === n || (c.length >= 3 && coreName(d.name) === c) || (l.length >= 3 && looseName(d.name) === l))
   // 完全に同じ名称の指定を優先する（「〇〇小学校」と「〇〇小学校（校庭）」を取り違えない）
-  return same.find((d) => normalizeName(d.name) === n) ?? same[0]
+  const exact = same.find((d) => normalizeName(d.name) === n) ?? same[0]
+  if (exact) return exact
+  // 一覧での名称を含むだけの指定。候補が 1 つのときだけ選ぶ（建物と校庭のどちらか決められない場合は付けない）
+  const partial = all.filter((d) => containsName(row.name, d.name))
+  return partial.length === 1 ? partial[0] : undefined
 }
 
-export type MatchMethod = 'source_id' | 'name_and_location' | 'name_only'
+export type MatchMethod = 'source_id' | 'name_and_location' | 'name_contains_and_location' | 'name_only'
 export interface CapacityMatch { row: CapacityRow; facility: Facility; method: MatchMethod; distance_m: number | null }
 
 /** 名称が同じとみなす距離の上限。これより離れていれば別の施設として扱う */
 export const MATCH_DISTANCE_M = 300
+/** 一覧での名称が施設の名称に含まれるだけの場合（「鳥越公民館」と「鳥越公民館 集会室」）に対応づける距離の上限 */
+export const CONTAINS_DISTANCE_M = 100
+
+/**
+ * 自治体の一覧での名称（listed）が、施設・指定の名称（ours）に含まれるか（4 文字以上のときだけ）。
+ * 逆向き（一覧のほうが細かい：「〇〇中学校グラウンド」「中央公民館_多目的室2」）は、建物全体の人数ではないので対応づけない。
+ * 括弧は記号だけ外し、中身は残す（「小学校（体育館）」を「小学校 屋上」に対応づけない）。
+ */
+function containsName(listed: string, ours: string): boolean {
+  const strip = (s: string) => looseName(s).replace(/[()[\]【】「」『』<>〈〉]/g, '')
+  const x = strip(listed)
+  return x.length >= 4 && strip(ours).includes(x)
+}
 
 /**
  * CSV の 1 行を施設に対応づける。あいまいな場合は対応づけない（誤った施設に人数を付けない）。
  *   1) 共通ID が指定の ID と一致
  *   2) 名称が一致（正規化後、または中核名が一致）し、座標が 300m 以内。候補が複数あれば最も近いもの
+ *   2') 一覧での名称が施設の名称に含まれ、座標が 100m 以内（候補が複数あれば最も近いもの）
  *   3) 座標がない行は、名称が一致する施設が市区町村内に 1 つだけのとき
  */
 export function matchCapacity(rows: CapacityRow[], facilities: Facility[]): { matched: CapacityMatch[]; unmatched: CapacityRow[] } {
@@ -165,6 +189,12 @@ export function matchCapacity(rows: CapacityRow[], facilities: Facility[]): { ma
         .filter((x) => x.d <= MATCH_DISTANCE_M)
         .sort((a, b) => a.d - b.d)
       if (near[0]) { matched.push({ row, facility: near[0].f, method: 'name_and_location', distance_m: Math.round(near[0].d) }); continue }
+      const loose = facilities
+        .filter((f) => names(f).some((x) => containsName(row.name, x)))
+        .map((f) => ({ f, d: distanceM({ lat: row.lat!, lng: row.lng! }, f) }))
+        .filter((x) => x.d <= CONTAINS_DISTANCE_M)
+        .sort((a, b) => a.d - b.d)
+      if (loose[0]) { matched.push({ row, facility: loose[0].f, method: 'name_contains_and_location', distance_m: Math.round(loose[0].d) }); continue }
     } else if (cands.length === 1) {
       matched.push({ row, facility: cands[0]!, method: 'name_only', distance_m: null }); continue
     }

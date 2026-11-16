@@ -39,6 +39,8 @@ export interface PublishedCapacity {
   persons: number
   /** もとの文字列。算出の前提が書かれていることがある（「1,350人（3.3平方メートルあたり2人）」など） */
   raw: string
+  /** 自治体の一覧での名称。指定の名称と違う場合があるので残す */
+  listed_name: string
   /** 公表している自治体と、データの名称・利用条件・掲載ページ・取得日 */
   source: { publisher: string; title: string; license: string; page_url: string; fetched_date: string }
 }
@@ -130,6 +132,8 @@ export interface MuniFile {
   pref_name: string
   muni_name: string
   generated_at: string
+  /** 算出根拠（scores.breakdown）の中で { $t: 番号 } として参照される文章の表。多くの施設で同じになる式・注記・出典を 1 回だけ持つ */
+  breakdown_texts?: unknown[]
   facilities: Facility[]
 }
 

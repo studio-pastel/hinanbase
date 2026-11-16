@@ -27,8 +27,16 @@ for (const file of readdirSync(dir).filter((f) => /^\d{5}\.csv$/.test(f)).sort()
   const key = file.slice(0, 5)
   const src = sources[key]
   const muniPath = join(BUILD_DIR, 'facilities', 'by-muni', `${key}.json`)
-  if (!src || !existsSync(muniPath)) { console.log(`${key}: ${src ? '施設データに市区町村がありません' : 'sources.json に出典がありません'}。取り込みません`); continue }
+  if (!existsSync(muniPath)) { console.log(`${key}: 施設データに市区町村がありません。取り込みません`); continue }
   const muni = JSON.parse(readFileSync(muniPath, 'utf8')) as MuniFile
+  if (!src) {
+    // 出典を確認できていない CSV は取り込まない。以前に取り込んだ値が残っていれば消す
+    let removed = 0
+    for (const f of muni.facilities) for (const d of [...f.designations.emergency_site, ...f.designations.shelter]) if (d.capacity) { delete d.capacity; removed++ }
+    if (removed > 0 && !dryRun) writeFileSync(muniPath, JSON.stringify(muni))
+    console.log(`${key} ${muni.muni_name}: sources.json に出典がありません。取り込みません${removed > 0 ? `（以前の値 ${removed} 件を消しました）` : ''}`)
+    continue
+  }
   const rows = readCapacityRows(decodeCsv(readFileSync(join(dir, file))))
   if (!rows) { console.log(`${key} ${muni.muni_name}: 名称または収容人数の列が見つかりません`); continue }
   // 前回の取り込み結果を消してから付け直す
@@ -37,22 +45,22 @@ for (const file of readdirSync(dir).filter((f) => /^\d{5}\.csv$/.test(f)).sort()
   const { matched, unmatched } = matchCapacity(rows, muni.facilities)
   const source: PublishedCapacity['source'] = { publisher: src.publisher, title: src.title, license: src.license, page_url: src.page_url, fetched_date: src.fetched_date }
   // 指定ごとに集める。同じ指定に値の違う行が複数当たった場合は、どちらが正しいか決められないので付けない
-  const byDesignation = new Map<string, { d: NonNullable<ReturnType<typeof pickDesignation>>; values: Map<number, string> }>()
+  const byDesignation = new Map<string, { d: NonNullable<ReturnType<typeof pickDesignation>>; values: Map<number, { raw: string; name: string }> }>()
   const noDesignation: string[] = []
   for (const m of matched) {
     if (m.row.persons === null) continue
     const d = pickDesignation(m.row, m.facility)
     if (!d) { noDesignation.push(m.row.name); continue }
-    const e = byDesignation.get(d.source_id) ?? { d, values: new Map<number, string>() }
-    e.values.set(m.row.persons, m.row.raw)
+    const e = byDesignation.get(d.source_id) ?? { d, values: new Map<number, { raw: string; name: string }>() }
+    e.values.set(m.row.persons, { raw: m.row.raw, name: m.row.name })
     byDesignation.set(d.source_id, e)
   }
   const conflicts: string[] = []
   let written = 0
   for (const { d, values } of byDesignation.values()) {
     if (values.size > 1) { conflicts.push(`${d.name}（${[...values.keys()].join(' / ')}）`); continue }
-    const [persons, raw] = [...values.entries()][0]!
-    d.capacity = { persons, raw, source }
+    const [persons, v] = [...values.entries()][0]!
+    d.capacity = { persons, raw: v.raw, listed_name: v.name, source }
     written++
   }
   const facilities = muni.facilities.filter((f) => [...f.designations.emergency_site, ...f.designations.shelter].some((d) => d.capacity)).length
