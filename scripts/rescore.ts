@@ -129,11 +129,11 @@ for (const file of readdirSync(muniDir).sort()) {
   }
   if (JSON.stringify(muni.breakdown_texts ?? []) !== JSON.stringify(texts)) changed = true
   if (changed) {
-    // facilities より前に置く（読み込み順は関係ないが、ファイルを見たときに分かりやすい）
-    const { facilities, ...head } = muni
-    Object.assign(muni, { ...head, breakdown_texts: texts, facilities })
     muni.generated_at = now
-    writeFileSync(path, JSON.stringify(muni))
+    // 文章の表は facilities より前に書く（読み込みには関係ないが、ファイルを開いたときに先に目に入るように）
+    const { facilities, ...head } = muni
+    delete head.breakdown_texts
+    writeFileSync(path, JSON.stringify({ ...head, breakdown_texts: texts, facilities }))
     changedMunis++
   }
   munis.push({ key: muni.muni_key, prefCode: muni.pref_code, prefName: muni.pref_name, muniName: muni.muni_name, count: muni.facilities.length })

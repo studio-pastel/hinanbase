@@ -189,7 +189,7 @@ function ScoreBars({ facility, texts }: { facility: Facility; texts: unknown[] |
                     <span className="w-8 text-right tabular-nums">{v}</span>
                   </div>
                 )}
-                {axis === 'logistics' && v !== null && facility.road && <RoadDetail facility={facility} />}
+                {axis === 'logistics' && v !== null && facility.road && <RoadDetail facility={facility} logistics={breakdown.logistics} />}
                 {axis === 'logistics' && v === null && facility.road && (
                   <p className="m-0 mt-1 text-sm text-ink-soft">{facility.road.land === 'no_road' ? ja.facility.road.noRoadOnLand : ja.facility.road.notFound(facility.road.searched_m)} {ja.facility.road.source}</p>
                 )}
@@ -261,11 +261,12 @@ function CapacityAxis({ facility, capacity }: { facility: Facility; capacity: un
   )
 }
 
-function RoadDetail({ facility }: { facility: Facility }) {
+function RoadDetail({ facility, logistics }: { facility: Facility; logistics: unknown }) {
   const t = ja.facility.road
   const road = facility.road!
-  const stock = facility.amenities.stockpile_onsite
-  const known = stock && stock.confidence !== 'disputed' && typeof stock.value === 'boolean' ? stock.value : null
+  // 備蓄の扱いは、点数の算出に使った値（算出根拠）をそのまま示す。設備項目を画面で直接読まない（CLAUDE.md 絶対ルール 4）
+  const stock = (logistics as { stockpile_onsite?: unknown } | undefined)?.stockpile_onsite
+  const known = typeof stock === 'boolean' ? stock : null
   return (
     <div className="mt-1 text-sm">
       <p className="m-0">
