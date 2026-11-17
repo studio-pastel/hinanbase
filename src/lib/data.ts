@@ -1,6 +1,6 @@
 // 静的データ（R2 またはローカル配信）の取得。地図・詳細表示は Supabase を読まない（CLAUDE.md）
 import { useQuery } from '@tanstack/react-query'
-import type { Meta, MuniFile, MuniIndexFile, NationalSummary } from '../../shared/types.ts'
+import type { EvacueeEstimates, Meta, MuniFile, MuniIndexFile, NationalSummary } from '../../shared/types.ts'
 
 export const DATA_BASE_URL = (import.meta.env.VITE_DATA_BASE_URL ?? '').replace(/\/+$/, '')
 
@@ -18,6 +18,8 @@ export const useMeta = () =>
   useQuery({ queryKey: ['meta'], queryFn: () => getJson<Meta>('/meta.json'), staleTime: STALE })
 export const useMuniIndex = () =>
   useQuery({ queryKey: ['munis'], queryFn: () => getJson<MuniIndexFile>('/summary/munis.json'), staleTime: STALE })
+export const useEvacueeEstimates = () =>
+  useQuery({ queryKey: ['evacuees'], queryFn: () => getJson<EvacueeEstimates>('/summary/evacuee-estimates.json'), staleTime: STALE, retry: 1 })
 export const useMuni = (muniKey: string) =>
   useQuery({
     queryKey: ['muni', muniKey],

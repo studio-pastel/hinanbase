@@ -153,6 +153,34 @@ export interface MuniIndexFile {
   prefs: PrefIndexEntry[]
 }
 
+/** 都道府県の地震被害想定で公表されている市区町村別の避難者数（DATA_NOTES 12.24）。本サービスの推定ではない */
+export interface EvacueeEstimatePref {
+  publisher: string
+  title: string
+  published: string
+  url: string
+  /** 資料の中のページ（PDF の場合） */
+  page: number | null
+  /** 表示している想定（都道府県全体の避難者数が最も多いもの） */
+  scenario: string
+  condition: string
+  /** 列ごとの時点と区分（例：1日後・避難所） */
+  columns: { time: string; kind: string }[]
+  total: (number | null)[] | null
+  note: string | null
+  /** 資料にあるほかの想定の数 */
+  other_scenario_count: number
+  /** 市区町村コード → 値。値が null のものは、資料で「＊」「－」など数値以外で示されている */
+  munis: Record<string, { name: string; values: (number | null)[] }>
+  /** 資料にあるが、施設データにない市区町村 */
+  not_in_facility_data: string[]
+}
+export interface EvacueeEstimates {
+  description: string
+  extracted_at: string
+  prefs: Record<string, EvacueeEstimatePref>
+}
+
 export interface NationalSummary {
   generated_at: string
   facility_count: number

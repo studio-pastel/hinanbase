@@ -13,16 +13,17 @@
     "data:facilities": "tsx scripts/build-facilities.ts",
     "data:tiles": "tsx scripts/build-tiles.ts",
     "data:summaries": "tsx scripts/build-summaries.ts",
-    "data:build": "npm run data:facilities && npm run data:hazards && npm run data:roads && npm run data:capacity && npm run data:rescore && npm run data:tiles && npm run data:summaries",
+    "data:build": "npm run data:facilities && npm run data:hazards && npm run data:roads && npm run data:capacity && npm run data:rescore && npm run data:tiles && npm run data:summaries && npm run data:evacuees",
     "data:serve": "tsx scripts/serve-data.ts",
     "data:upload": "tsx scripts/upload-r2.ts",
     "data:sync": "tsx --env-file=.env.local scripts/sync-supabase.ts",
     "data:rescore": "tsx --env-file-if-exists=.env.local scripts/rescore.ts",
-    "data:daily": "npm run data:rescore && npm run data:tiles && npm run data:summaries",
+    "data:daily": "npm run data:rescore && npm run data:tiles && npm run data:summaries && npm run data:evacuees",
     "data:hazards": "tsx scripts/fetch-hazards.ts",
     "data:roads": "tsx scripts/build-roads.ts",
     "data:capacity-check": "tsx scripts/check-capacity.ts",
-    "data:capacity": "tsx scripts/import-capacity.ts"
+    "data:capacity": "tsx scripts/import-capacity.ts",
+    "data:evacuees": "tsx scripts/build-evacuees.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",

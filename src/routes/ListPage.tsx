@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Status } from '../components/Layout.tsx'
 import { StateLabel } from '../components/StateMark.tsx'
 import { fmt, ja } from '../i18n/ja.ts'
-import { useMuni, useMuniIndex } from '../lib/data.ts'
+import { useEvacueeEstimates, useMuni, useMuniIndex } from '../lib/data.ts'
 
 function Shell({ title, crumbs, children }: { title: string; crumbs: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -87,6 +87,7 @@ export function ListFacilitiesPage() {
       {d && (
         <>
           <p className="m-0 mt-2 text-base text-ink-soft">{fmt.format(d.facilities.length)} {ja.unitFacilities}</p>
+          <EvacueeEstimate prefCode={prefCode} muniKey={muniKey} />
           {overlapCount > 0 && (
             <div className="mt-2 rounded border border-line bg-surface p-3 text-base">
               <p className="m-0">{ja.list.overlapCount(overlapCount)}</p>
@@ -131,5 +132,58 @@ export function ListFacilitiesPage() {
         </>
       )}
     </Shell>
+  )
+}
+
+/** 都道府県の地震被害想定で公表されている避難者数を、出典付きで引用する（DATA_NOTES 12.24）。本サービスの推定ではない */
+function EvacueeEstimate({ prefCode, muniKey }: { prefCode: string; muniKey: string }) {
+  const q = useEvacueeEstimates()
+  const t = ja.list.evacuee
+  if (!q.data) return null
+  const pref = q.data.prefs[prefCode]
+  const muni = pref?.munis[muniKey]
+  if (!pref || !muni) return <p className="m-0 mt-3 text-sm text-ink-soft">{t.none}</p>
+  // 列（時点 × 区分）を、時点ごとの行にまとめる
+  const times = [...new Set(pref.columns.map((c) => c.time))]
+  const kinds = [...new Set(pref.columns.map((c) => c.kind))]
+  const cell = (time: string, kind: string) => {
+    const i = pref.columns.findIndex((c) => c.time === time && c.kind === kind)
+    if (i < 0) return '—'
+    const v = muni.values[i] ?? null
+    return v === null ? t.notNumeric : `${fmt.format(v)} ${t.unit}`
+  }
+  return (
+    <section aria-labelledby="evacuee-h" className="mt-3 rounded border border-line bg-surface p-3 text-base">
+      <h2 id="evacuee-h" className="m-0 text-lg font-bold">{t.title}</h2>
+      <p className="m-0 mt-1 text-sm">{t.intro(pref.publisher)}</p>
+      <p className="m-0 mt-1 text-sm font-bold">{t.scenario(pref.scenario, pref.condition)}</p>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr>
+              <th scope="col" className="border-b border-line py-1 pr-3 text-left font-normal text-ink-soft">{t.time}</th>
+              {kinds.map((k) => <th key={k} scope="col" className="border-b border-line py-1 pr-3 text-right font-normal text-ink-soft">{k}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {times.map((time) => (
+              <tr key={time}>
+                <th scope="row" className="py-1 pr-3 text-left font-normal">{time}</th>
+                {kinds.map((k) => <td key={k} className="py-1 pr-3 text-right tabular-nums">{cell(time, k)}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <ul className="m-0 mt-2 list-disc pl-5 text-sm text-ink-soft">
+        {t.notes.map((n) => <li key={n}>{n}</li>)}
+        {t.chosen(pref.other_scenario_count, pref.publisher) && <li>{t.chosen(pref.other_scenario_count, pref.publisher)}</li>}
+        {pref.note && <li>{pref.note}</li>}
+      </ul>
+      <p className="m-0 mt-2 text-sm text-ink-soft">
+        {t.source(pref.title, pref.publisher, pref.published)}{' '}
+        <a href={pref.url} target="_blank" rel="noreferrer">{t.openSource}</a>
+      </p>
+    </section>
   )
 }

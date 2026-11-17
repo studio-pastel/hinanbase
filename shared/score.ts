@@ -4,7 +4,7 @@
 //   * 算出根拠は breakdown にすべて残す。
 import { HAZARD_KEYS, type AmenityValue, type DisplayState, type EmergencyDesignation, type HazardCheck, type HazardKey, type RoadAccess, type Scores } from './types.ts'
 
-export const SCORE_METHOD_VERSION = 'phase4-4'
+export const SCORE_METHOD_VERSION = 'phase4-5'
 
 /** 想定区域のデータ（ハザードマップポータルサイト）と照合できる災害種別。地震・大規模な火事・火山現象は対応するデータがない */
 export const ZONE_CHECKABLE: HazardKey[] = ['flood', 'landslide', 'storm_surge', 'tsunami', 'inland_flood']
@@ -55,8 +55,10 @@ export function itemScore(rule: HabitabilityRule, value: AmenityValue['value']):
 const round1 = (n: number) => Math.round(n * 10) / 10
 
 /**
- * 表示状態（SPEC §3.6）。軸A と軸B は点数を出さないので、点数で見るのは軸C・D。
- * 「良好」は、軸C・D がどちらも評価済みで 75 以上、かつ軸A で重なりが見つからなかった場合だけ。
+ * 表示状態（SPEC §3.6、DATA_NOTES D-30）。
+ * 「要確認（重要）」「要確認」に下げるのは、軸A の重なりと、施設そのものの状態である軸C（生活環境）だけ。
+ * 軸D（緊急輸送道路までの距離）は立地の条件で、施設の不備ではないので、表示状態を下げない。
+ * 「良好」にするには、軸C・D がどちらも評価済みで 75 以上、かつ軸A で重なりが見つからなかったことを求める。
  */
 export function displayState(
   axes: { habitability: number | null; logistics: number | null },
@@ -64,10 +66,11 @@ export function displayState(
   hazardStatus: HazardCheck['status'] = 'not_evaluated',
 ): DisplayState {
   if (coverageRatio < 0.4) return 'unknown'
-  const evaluated = [axes.habitability, axes.logistics].filter((v): v is number => v !== null)
-  if (hazardStatus === 'attention' || evaluated.some((v) => v < 25)) return 'critical'
-  if (evaluated.some((v) => v < 50)) return 'poor'
-  if (evaluated.length === 2 && evaluated.every((v) => v >= 75) && hazardStatus === 'no_overlap_found') return 'good'
+  const c = axes.habitability
+  const d = axes.logistics
+  if (hazardStatus === 'attention' || (c !== null && c < 25)) return 'critical'
+  if (c !== null && c < 50) return 'poor'
+  if (c !== null && c >= 75 && d !== null && d >= 75 && hazardStatus === 'no_overlap_found') return 'good'
   return 'fair'
 }
 
@@ -110,8 +113,9 @@ export function logisticsScore(road: RoadAccess | undefined, stockpile: AmenityV
       stockpile_adjust: adjust,
       note:
         '距離は直線距離で、実際の道のりではない。高速自動車国道と都市高速道路は除いて測っている。' +
-        '道路のデータは 2020 年 3 月時点で、もとの計画図はそれより古い場合がある',
-      source: '「国土数値情報（緊急輸送道路データ、行政区域データ）」（国土交通省）を加工して作成',
+        '道路のデータは 2020 年 3 月時点で、もとの計画図はそれより古い場合がある。位置には誤差があり、その後の指定の変更は反映されていない',
+      source: '「国土数値情報（緊急輸送道路データ）」（国土交通省）https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N10-2020.html（2026年11月15日取得）、「国土数値情報（行政区域データ）」（国土交通省）https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2026.html（2026年11月15日取得）をもとに HinanBase が加工して作成',
+      license: '緊急輸送道路データの使用許諾条件は「非商用」。この軸の点数と road の項目は、非商用目的に限り利用できる（国土数値情報ダウンロードサービスコンテンツ利用規約（旧国土情報利用約款準拠版））',
     },
   }
 }

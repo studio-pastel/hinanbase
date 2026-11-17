@@ -90,7 +90,7 @@ describe('4軸の算出', () => {
   it('算出根拠を breakdown に残す', () => {
     const s = computeScores({ aircon_main_hall: v('partial'), wifi: v(true) }, defs)
     const h = s.breakdown.habitability as { items: Record<string, { score: number | null }>; excluded: string[] }
-    expect(s.breakdown.method_version).toBe('phase4-4')
+    expect(s.breakdown.method_version).toBe('phase4-5')
     expect(h.items.aircon_main_hall!.score).toBe(0.67)
     expect(h.items.shower!.score).toBeNull()
     expect(h.excluded).toContain('elevator')
@@ -106,7 +106,13 @@ describe('表示状態', () => {
     expect(displayState(ax(24.9), 0.5)).toBe('critical')
     expect(displayState(ax(49.9), 0.5)).toBe('poor')
     expect(displayState(ax(90), 0.5)).toBe('fair')
-    expect(displayState({ habitability: 90, logistics: 40 }, 0.5)).toBe('poor')
+  })
+  it('軸D（道路までの距離）が低くても、表示状態は下げない。「良好」にならないだけ', () => {
+    expect(displayState({ habitability: 90, logistics: 10 }, 0.5, 'no_overlap_found')).toBe('fair')
+    expect(displayState({ habitability: 90, logistics: 0 }, 0.5, 'no_overlap_found')).toBe('fair')
+    expect(displayState({ habitability: null, logistics: 10 }, 0.5)).toBe('fair')
+    expect(displayState({ habitability: 40, logistics: 10 }, 0.5)).toBe('poor')
+    expect(displayState({ habitability: 20, logistics: 100 }, 0.5)).toBe('critical')
   })
   it('「良好」は軸C・D が 75 以上で、軸A で重なりが見つからなかった場合だけ（軸B は条件にしない）', () => {
     const ok = { habitability: 80, logistics: 80 }
