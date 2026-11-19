@@ -26,6 +26,10 @@ export interface MapFeature {
   lat: number
 }
 
+/** 地図に重ねるハザードマップ（ハザードマップポータルサイトの表示用タイル） */
+export const HAZARD_OVERLAYS = ['flood', 'landslide', 'tsunami', 'storm_surge'] as const
+export type HazardOverlay = (typeof HAZARD_OVERLAYS)[number]
+
 export interface MapLabels {
   zoomIn: string
   zoomOut: string
@@ -33,6 +37,7 @@ export interface MapLabels {
   locateUnavailable: string
   attributionBase: string
   attributionData: string
+  attributionHazard: string
 }
 
 export type MapMountOptions =
@@ -51,6 +56,8 @@ export interface MapAdapter {
   setPin(lat: number, lng: number, zoom?: number): void
   /** 地点（pick モード）を地図のタップで動かしたとき */
   onPick(callback: (lat: number, lng: number) => void): void
+  /** ハザードマップを重ねる（null で消す）。施設の印より下に描く */
+  setHazardOverlay(overlay: HazardOverlay | null): void
   destroy(): void
 }
 

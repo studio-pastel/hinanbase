@@ -4,7 +4,9 @@ import { expandBreakdown } from '../../shared/score.ts'
 import { HAZARD_KEYS, type AmenityValue, type Facility } from '../../shared/types.ts'
 import { DisputeForm, History } from '../components/Community.tsx'
 import { Status } from '../components/Layout.tsx'
+import { HazardOverlayPicker } from '../components/HazardOverlayPicker.tsx'
 import { MapView } from '../components/MapView.tsx'
+import type { HazardOverlay } from '../lib/map/index.ts'
 import { StateLabel } from '../components/StateMark.tsx'
 import { ja } from '../i18n/ja.ts'
 import { amenityCategories, formatValue } from '../lib/amenities.ts'
@@ -18,6 +20,7 @@ export function FacilityPage() {
   const { muniKey, facilityId } = useParams({ from: '/f/$muniKey/$facilityId' })
   const muni = useMuni(muniKey)
   const meta = useMeta()
+  const [overlay, setOverlay] = useState<HazardOverlay | null>(null)
   const invalid = !/^\d{5}$/.test(muniKey)
   if (!invalid && !muni.data) return <Status loading={muni.isLoading} error={muni.isError} />
   const facility = muni.data?.facilities.find((f) => f.id === facilityId)
@@ -63,7 +66,9 @@ export function FacilityPage() {
         restrictedOnly={restrictedOnly}
         className="h-64 w-full overflow-hidden rounded border border-line"
         label={ja.facility.mapLabel}
+        hazardOverlay={overlay}
       />
+      <HazardOverlayPicker value={overlay} onChange={setOverlay} />
 
       <Designations facility={facility} />
       <ScoreBars facility={facility} texts={muni.data?.breakdown_texts} />

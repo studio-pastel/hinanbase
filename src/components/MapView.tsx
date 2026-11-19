@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { ja } from '../i18n/ja.ts'
-import { createMapAdapter, type MapAdapter, type MapFeature, type MapFilter, type MapMountOptions } from '../lib/map/index.ts'
+import { createMapAdapter, type HazardOverlay, type MapAdapter, type MapFeature, type MapFilter, type MapMountOptions } from '../lib/map/index.ts'
 
 type Props = {
   className?: string
@@ -8,6 +8,7 @@ type Props = {
   filter?: MapFilter
   selectedId?: string | null
   onSelect?: (f: MapFeature | null) => void
+  hazardOverlay?: HazardOverlay | null
 } & (
   | { mode: 'national'; tilesUrl: string }
   | { mode: 'single'; lat: number; lng: number; state: MapFeature['state']; restrictedOnly: boolean }
@@ -21,6 +22,7 @@ const labels = {
   locateUnavailable: ja.map.locateUnavailable,
   attributionBase: ja.map.attributionBase,
   attributionData: ja.map.attributionData,
+  attributionHazard: ja.map.attributionHazard,
 }
 
 /** 地図を表示する。実体は MapAdapter 経由（CLAUDE.md 絶対ルール 10） */
@@ -55,6 +57,7 @@ export function MapView(props: Props) {
       a.onPick((lat, lng) => { const q = latest.current; if (q.mode === 'pick') q.onPick(lat, lng) })
       if (p.filter) a.setFilter(p.filter)
       a.setSelected(p.selectedId ?? null)
+      a.setHazardOverlay(p.hazardOverlay ?? null)
     })
     return () => {
       cancelled = true
@@ -69,6 +72,9 @@ export function MapView(props: Props) {
   useEffect(() => {
     adapterRef.current?.setSelected(props.selectedId ?? null)
   }, [props.selectedId])
+  useEffect(() => {
+    adapterRef.current?.setHazardOverlay(props.hazardOverlay ?? null)
+  }, [props.hazardOverlay])
   // pick モード：外から地点が変わったとき（候補を選び直したときなど）に地図を合わせる
   const pinKey = props.mode === 'pick' ? `${props.lat},${props.lng},${props.zoom}` : ''
   useEffect(() => {

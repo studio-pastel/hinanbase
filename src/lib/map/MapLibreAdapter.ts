@@ -8,7 +8,7 @@ import type { Point } from 'geojson'
 import { Protocol } from 'pmtiles'
 import { DISPLAY_STATES, HAZARD_KEYS, type DisplayState } from '../../../shared/types.ts'
 import { ICON_PIXEL_RATIO, clusterIcon, markerIcon, pinIcon, selectedIcon } from './icons.ts'
-import { clusterCountAttributes, type MapAdapter, type MapFeature, type MapFilter, type MapMountOptions } from './MapAdapter.ts'
+import { clusterCountAttributes, type HazardOverlay, type MapAdapter, type MapFeature, type MapFilter, type MapMountOptions } from './MapAdapter.ts'
 
 let protocolReady = false
 function ensureProtocol() {
@@ -21,6 +21,16 @@ function ensureProtocol() {
 const BASE_TILES = 'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png'
 const BASE_ATTRIBUTION_URL = 'https://maps.gsi.go.jp/development/ichiran.html'
 const DATA_ATTRIBUTION_URL = 'https://hinanmap.gsi.go.jp/'
+const HAZARD_TILE_BASE = 'https://disaportaldata.gsi.go.jp/raster'
+const HAZARD_ATTRIBUTION_URL = 'https://disaportal.gsi.go.jp/'
+/** 重ねる表示用のタイル。土砂災害は 3 種類を重ねる */
+const HAZARD_OVERLAY_LAYERS: Record<HazardOverlay, string[]> = {
+  flood: ['01_flood_l2_shinsuishin'],
+  landslide: ['05_dosekiryukeikaikuiki', '05_kyukeishakeikaikuiki', '05_jisuberikeikaikuiki'],
+  tsunami: ['04_tsunami_newlegend'],
+  storm_surge: ['03_hightide_l2_shinsuishin'],
+}
+const HAZARD_PREFIX = 'hazard-'
 const SOURCE = 'shelters'
 const LAYER_CLUSTERS = 'shelter-clusters'
 const LAYER_POINTS = 'shelter-points'
@@ -36,10 +46,14 @@ export class MapLibreAdapter implements MapAdapter {
   private pickCallback: ((lat: number, lng: number) => void) | null = null
   private pin: [number, number] | null = null
   private loaded = false
+  private styleReady = false
+  private overlay: HazardOverlay | null = null
+  private hazardAttribution = ''
 
   mount(container: HTMLElement, options: MapMountOptions): void {
     ensureProtocol()
     const { labels } = options
+    this.hazardAttribution = `<a href="${HAZARD_ATTRIBUTION_URL}" target="_blank" rel="noopener">${escapeHtml(labels.attributionHazard)}</a>`
     const single = options.mode === 'single'
     const pick = options.mode === 'pick'
     if (pick) this.pin = [options.lng, options.lat]
@@ -98,6 +112,8 @@ export class MapLibreAdapter implements MapAdapter {
       }
       map.addImage('selected', selectedIcon(), imageOptions)
       map.addImage('pin', pinIcon(), imageOptions)
+      this.styleReady = true
+      this.applyOverlay()
       if (options.mode === 'single') {
         map.addSource('single', {
           type: 'geojson',
@@ -191,6 +207,37 @@ export class MapLibreAdapter implements MapAdapter {
     this.pickCallback = callback
   }
 
+  setHazardOverlay(overlay: HazardOverlay | null): void {
+    this.overlay = overlay
+    this.applyOverlay()
+  }
+
+  /** 重ねるハザードマップを入れ替える。地図の下地のすぐ上（施設の印より下）に入れる */
+  private applyOverlay() {
+    const map = this.map
+    if (!map || !this.styleReady) return
+    for (const layer of map.getStyle().layers ?? []) {
+      if (layer.id.startsWith(HAZARD_PREFIX)) map.removeLayer(layer.id)
+    }
+    for (const id of Object.keys(map.getStyle().sources ?? {})) {
+      if (id.startsWith(HAZARD_PREFIX)) map.removeSource(id)
+    }
+    if (!this.overlay) return
+    const before = map.getStyle().layers?.[1]?.id
+    HAZARD_OVERLAY_LAYERS[this.overlay].forEach((name, i) => {
+      const id = `${HAZARD_PREFIX}${name}`
+      map.addSource(id, {
+        type: 'raster',
+        tiles: [`${HAZARD_TILE_BASE}/${name}/{z}/{x}/{y}.png`],
+        tileSize: 256,
+        minzoom: 2,
+        maxzoom: 17,
+        ...(i === 0 ? { attribution: this.hazardAttribution } : {}),
+      })
+      map.addLayer({ id, type: 'raster', source: id, paint: { 'raster-opacity': 0.65 } }, before)
+    })
+  }
+
   private pinData() {
     return { type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: this.pin ?? [0, 0] }, properties: {} }
   }
@@ -204,6 +251,7 @@ export class MapLibreAdapter implements MapAdapter {
     this.map?.remove()
     this.map = null
     this.loaded = false
+    this.styleReady = false
   }
 
   private select(feature: MapFeature | null) {

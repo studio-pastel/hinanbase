@@ -1,11 +1,12 @@
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { DISPLAY_STATES, HAZARD_KEYS, KIND_EMERGENCY, KIND_SHELTER, type DisplayState, type HazardKey } from '../../shared/types.ts'
+import { HazardOverlayPicker } from '../components/HazardOverlayPicker.tsx'
 import { MapView } from '../components/MapView.tsx'
 import { AttentionMark, StateLabel, StateMark } from '../components/StateMark.tsx'
 import { fmt, ja, pct } from '../i18n/ja.ts'
 import { DATA_BASE_URL, useNational } from '../lib/data.ts'
-import { isClusterCountUnavailable, type MapFeature, type MapFilter } from '../lib/map/index.ts'
+import { isClusterCountUnavailable, type HazardOverlay, type MapFeature, type MapFilter } from '../lib/map/index.ts'
 
 const tilesUrl = `${DATA_BASE_URL || window.location.origin}/tiles/shelters.pmtiles`
 
@@ -13,6 +14,7 @@ export function MapPage() {
   const national = useNational()
   const [filter, setFilter] = useState<MapFilter>({ kind: 'all', hazard: 'all', states: [...DISPLAY_STATES], ac: 'all', overlap: 'all' })
   const [selected, setSelected] = useState<MapFeature | null>(null)
+  const [overlay, setOverlay] = useState<HazardOverlay | null>(null)
   const [panelOpen, setPanelOpen] = useState(() => window.matchMedia('(min-width: 768px)').matches)
 
   return (
@@ -50,6 +52,7 @@ export function MapPage() {
             filter={filter}
             selectedId={selected?.id ?? null}
             onSelect={setSelected}
+            hazardOverlay={overlay}
           />
           {selected && <SelectedCard feature={selected} onClose={() => setSelected(null)} />}
         </div>
@@ -95,6 +98,9 @@ export function MapPage() {
               {filter.overlap === 'only' ? ja.map.overlapOnlyOn : ja.map.overlapOnly}
             </button>
             {filter.overlap === 'only' && <p className="m-0 mt-1 text-sm text-ink-soft">{ja.map.overlapOnlyHelp}</p>}
+            <div className="mt-3 text-base">
+              <HazardOverlayPicker value={overlay} onChange={setOverlay} />
+            </div>
           </div>
           <div id="filter-panel" hidden={!panelOpen} className="space-y-4 px-4 pb-4 text-base">
             <FilterControls filter={filter} onChange={setFilter} />

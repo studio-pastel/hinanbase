@@ -113,8 +113,19 @@ export const ja = {
     locateUnavailable: '現在地を取得できません',
     attributionBase: '地理院タイル',
     attributionData: '国土地理院「指定緊急避難場所・指定避難所データ」を加工',
+    attributionHazard: 'ハザードマップポータルサイト',
     selectedClose: '閉じる',
     openDetail: '施設の詳細を見る',
+  },
+
+  overlay: {
+    label: 'ハザードマップを重ねる',
+    none: '重ねない',
+    names: { flood: '洪水', landslide: '土砂災害', tsunami: '津波', storm_surge: '高潮' },
+    note: '国の「重ねるハザードマップ」の想定区域を色で表示しています。避難所の位置と見比べるためのものです。色が付いていない場所も、安全とは限りません（想定が作られていない場所があります）。最新の詳しい情報は、市区町村のハザードマップで確認してください。',
+    legendLink: '色の意味（凡例）を見る',
+    legendUrl: 'https://disaportal.gsi.go.jp/hazardmapportal/hazardmap/copyright/opendata.html',
+    source: '出典：ハザードマップポータルサイト',
   },
 
   facility: {
