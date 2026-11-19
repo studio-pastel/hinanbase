@@ -11,6 +11,7 @@ type Props = {
 } & (
   | { mode: 'national'; tilesUrl: string }
   | { mode: 'single'; lat: number; lng: number; state: MapFeature['state']; restrictedOnly: boolean }
+  | { mode: 'pick'; tilesUrl: string; lat: number; lng: number; zoom: number; onPick: (lat: number, lng: number) => void }
 )
 
 const labels = {
@@ -29,8 +30,11 @@ export function MapView(props: Props) {
   const latest = useRef(props)
   useEffect(() => { latest.current = props })
 
+  // pick モードは、地点が動いても作り直さない（setPin で動かす）
   const mountKey =
-    props.mode === 'national' ? `n:${props.tilesUrl}` : `s:${props.lat},${props.lng},${props.state},${props.restrictedOnly}`
+    props.mode === 'national' ? `n:${props.tilesUrl}`
+      : props.mode === 'pick' ? `p:${props.tilesUrl}`
+        : `s:${props.lat},${props.lng},${props.state},${props.restrictedOnly}`
 
   useEffect(() => {
     let cancelled = false
@@ -43,9 +47,12 @@ export function MapView(props: Props) {
       const options: MapMountOptions =
         p.mode === 'national'
           ? { mode: 'national', tilesUrl: p.tilesUrl, labels }
-          : { mode: 'single', lat: p.lat, lng: p.lng, state: p.state, restrictedOnly: p.restrictedOnly, labels }
+          : p.mode === 'pick'
+            ? { mode: 'pick', tilesUrl: p.tilesUrl, lat: p.lat, lng: p.lng, zoom: p.zoom, labels }
+            : { mode: 'single', lat: p.lat, lng: p.lng, state: p.state, restrictedOnly: p.restrictedOnly, labels }
       a.mount(ref.current, options)
       a.onSelect((f) => latest.current.onSelect?.(f))
+      a.onPick((lat, lng) => { const q = latest.current; if (q.mode === 'pick') q.onPick(lat, lng) })
       if (p.filter) a.setFilter(p.filter)
       a.setSelected(p.selectedId ?? null)
     })
@@ -62,6 +69,12 @@ export function MapView(props: Props) {
   useEffect(() => {
     adapterRef.current?.setSelected(props.selectedId ?? null)
   }, [props.selectedId])
+  // pick モード：外から地点が変わったとき（候補を選び直したときなど）に地図を合わせる
+  const pinKey = props.mode === 'pick' ? `${props.lat},${props.lng},${props.zoom}` : ''
+  useEffect(() => {
+    const p = latest.current
+    if (p.mode === 'pick') adapterRef.current?.setPin(p.lat, p.lng, p.zoom)
+  }, [pinKey])
 
   // 地図ライブラリが要素の position を上書きするので、配置用の外枠と地図用の内枠を分ける
   return (

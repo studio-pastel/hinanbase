@@ -38,6 +38,8 @@ export interface MapLabels {
 export type MapMountOptions =
   | { mode: 'national'; tilesUrl: string; labels: MapLabels }
   | { mode: 'single'; lat: number; lng: number; state: DisplayState; restrictedOnly: boolean; labels: MapLabels }
+  /** 地点を選ぶ（「住所から探す」で、照合した位置を確認・調整する）。施設も表示する。地図をタップすると地点が動く */
+  | { mode: 'pick'; tilesUrl: string; lat: number; lng: number; zoom: number; labels: MapLabels }
 
 export interface MapAdapter {
   mount(container: HTMLElement, options: MapMountOptions): void
@@ -45,6 +47,10 @@ export interface MapAdapter {
   /** 施設が選ばれたとき（null は選択解除） */
   onSelect(callback: (feature: MapFeature | null) => void): void
   setSelected(id: string | null): void
+  /** 地点（pick モード）を動かし、その位置を地図の中心にする */
+  setPin(lat: number, lng: number, zoom?: number): void
+  /** 地点（pick モード）を地図のタップで動かしたとき */
+  onPick(callback: (lat: number, lng: number) => void): void
   destroy(): void
 }
 

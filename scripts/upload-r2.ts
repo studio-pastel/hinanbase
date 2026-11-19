@@ -16,8 +16,8 @@ import { BUILD_DIR, ROOT } from './lib/paths.ts'
 const bucket = process.env.R2_BUCKET
 if (!bucket) throw new Error('環境変数 R2_BUCKET が未設定です（.env.example を参照）')
 
-/** 公開するのはこの3つと meta.json だけ。intermediate/ と merge_candidates.json は上げない */
-const PUBLIC_DIRS = ['tiles', 'facilities', 'summary']
+/** 公開するのはこれらと meta.json だけ。intermediate/ と merge_candidates.json は上げない */
+const PUBLIC_DIRS = ['tiles', 'facilities', 'summary', 'points', 'geocode']
 
 function walk(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -25,7 +25,8 @@ function walk(dir: string): string[] {
     return statSync(p).isDirectory() ? walk(p) : [p]
   })
 }
-const files = [...PUBLIC_DIRS.flatMap((d) => walk(join(BUILD_DIR, d))), join(BUILD_DIR, 'meta.json')]
+// 日次ビルドでは geocode/ を作らない（元データが手元にしかない）。ないフォルダは飛ばし、R2 側の既存のファイルを残す
+const files = [...PUBLIC_DIRS.filter((d) => existsSync(join(BUILD_DIR, d))).flatMap((d) => walk(join(BUILD_DIR, d))), join(BUILD_DIR, 'meta.json')]
 
 const contentType = (p: string) => (p.endsWith('.json') ? 'application/json; charset=utf-8' : 'application/octet-stream')
 // 施設データと集計は日次で変わるので短め

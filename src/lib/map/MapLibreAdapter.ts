@@ -7,7 +7,7 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import type { Point } from 'geojson'
 import { Protocol } from 'pmtiles'
 import { DISPLAY_STATES, HAZARD_KEYS, type DisplayState } from '../../../shared/types.ts'
-import { ICON_PIXEL_RATIO, clusterIcon, markerIcon, selectedIcon } from './icons.ts'
+import { ICON_PIXEL_RATIO, clusterIcon, markerIcon, pinIcon, selectedIcon } from './icons.ts'
 import { clusterCountAttributes, type MapAdapter, type MapFeature, type MapFilter, type MapMountOptions } from './MapAdapter.ts'
 
 let protocolReady = false
@@ -33,12 +33,16 @@ export class MapLibreAdapter implements MapAdapter {
   private filter: MapFilter = { kind: 'all', hazard: 'all', states: [...DISPLAY_STATES], ac: 'all', overlap: 'all' }
   private selectedId: string | null = null
   private selectCallback: ((f: MapFeature | null) => void) | null = null
+  private pickCallback: ((lat: number, lng: number) => void) | null = null
+  private pin: [number, number] | null = null
   private loaded = false
 
   mount(container: HTMLElement, options: MapMountOptions): void {
     ensureProtocol()
     const { labels } = options
     const single = options.mode === 'single'
+    const pick = options.mode === 'pick'
+    if (pick) this.pin = [options.lng, options.lat]
     const map = new MapLibreMap({
       container,
       style: {
@@ -55,8 +59,8 @@ export class MapLibreAdapter implements MapAdapter {
         },
         layers: [{ id: 'base', type: 'raster', source: 'base' }],
       },
-      center: single ? [options.lng, options.lat] : [137.2, 37.6],
-      zoom: single ? 15 : 4.4,
+      center: single || pick ? [options.lng, options.lat] : [137.2, 37.6],
+      zoom: single ? 15 : pick ? options.zoom : 4.4,
       minZoom: 4,
       maxZoom: 18,
       maxBounds: [[110, 15], [165, 52]],
@@ -75,7 +79,7 @@ export class MapLibreAdapter implements MapAdapter {
     // 出典は折りたたまずに常に表示する（CLAUDE.md 絶対ルール 8）
     map.addControl(new AttributionControl({ compact: false }), 'bottom-right')
     map.addControl(new NavigationControl({ showCompass: false }), 'top-right')
-    if (!single) {
+    if (options.mode === 'national') {
       map.addControl(new GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false }), 'top-right')
     }
 
@@ -91,6 +95,7 @@ export class MapLibreAdapter implements MapAdapter {
         map.addImage(`m-${state}-1`, markerIcon(state, true), imageOptions)
       }
       map.addImage('selected', selectedIcon(), imageOptions)
+      map.addImage('pin', pinIcon(), imageOptions)
       if (options.mode === 'single') {
         map.addSource('single', {
           type: 'geojson',
@@ -129,6 +134,18 @@ export class MapLibreAdapter implements MapAdapter {
       this.applyFilter()
       this.applySelected()
 
+      if (pick) {
+        // 選んだ地点。施設の印より上に描く
+        map.addSource('pin', { type: 'geojson', data: this.pinData() })
+        map.addLayer({ id: 'pin', type: 'symbol', source: 'pin', layout: { 'icon-image': 'pin', 'icon-allow-overlap': true, 'icon-ignore-placement': true } })
+        map.on('click', (e) => {
+          this.pin = [e.lngLat.lng, e.lngLat.lat]
+          this.updatePin()
+          this.pickCallback?.(e.lngLat.lat, e.lngLat.lng)
+        })
+        return
+      }
+
       map.on('click', (e) => {
         const hits = map.queryRenderedFeatures(e.point, { layers: [LAYER_POINTS, LAYER_CLUSTERS] })
         const hit = hits[0]
@@ -159,6 +176,25 @@ export class MapLibreAdapter implements MapAdapter {
   setSelected(id: string | null): void {
     this.selectedId = id
     this.applySelected()
+  }
+
+  setPin(lat: number, lng: number, zoom?: number): void {
+    this.pin = [lng, lat]
+    this.updatePin()
+    this.map?.easeTo({ center: [lng, lat], ...(zoom !== undefined ? { zoom } : {}) })
+  }
+
+  onPick(callback: (lat: number, lng: number) => void): void {
+    this.pickCallback = callback
+  }
+
+  private pinData() {
+    return { type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: this.pin ?? [0, 0] }, properties: {} }
+  }
+
+  private updatePin() {
+    const src = this.map?.getSource('pin') as { setData?: (d: unknown) => void } | undefined
+    src?.setData?.(this.pinData())
   }
 
   destroy(): void {

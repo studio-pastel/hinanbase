@@ -15,23 +15,28 @@ export function Layout() {
       <div role="note" className="sticky top-0 z-40 bg-ink px-3 py-1.5 text-center text-sm leading-snug text-white">
         {ja.banner}
       </div>
-      <header className="flex items-center gap-x-1 overflow-x-auto border-b border-line bg-surface px-3 py-1.5 sm:gap-x-6 sm:px-4">
+      <header className="flex items-center gap-x-1 overflow-x-auto border-b border-line bg-surface px-2 py-1.5 sm:gap-x-6 sm:px-4">
         <Link to="/" className="flex shrink-0 items-baseline gap-3 whitespace-nowrap text-ink no-underline">
-          <span className="text-lg font-bold tracking-wide sm:text-xl">{ja.appName}</span>
+          <span className="text-base font-bold tracking-wide min-[400px]:text-lg sm:text-xl">{ja.appName}</span>
           <span className="hidden text-base text-ink-soft md:inline">{ja.tagline}</span>
         </Link>
         <nav aria-label={ja.nav.label} className="ml-auto flex shrink-0 text-base sm:gap-1">
           <NavLink to="/">{ja.nav.map}</NavLink>
           <NavLink to="/list">{ja.nav.list}</NavLink>
+          {/* スマホでは短い文言にして、ヘッダーを 1 行に収める */}
+          <NavLink to="/near" label={ja.nav.near}>
+            <span className="sm:hidden">{ja.nav.nearShort}</span>
+            <span className="hidden sm:inline">{ja.nav.near}</span>
+          </NavLink>
           {auth.isModerator && <NavLink to="/moderation">{ja.auth.moderation}</NavLink>}
         </nav>
         {auth.available && !auth.loading && (
           auth.session ? (
-            <button type="button" onClick={() => void auth.signOut()} className="shrink-0 whitespace-nowrap rounded border border-line px-2 text-base sm:px-3">
+            <button type="button" onClick={() => void auth.signOut()} className="shrink-0 whitespace-nowrap rounded border border-line px-1.5 text-base sm:px-3">
               {ja.auth.signOut}
             </button>
           ) : (
-            <button type="button" onClick={() => void auth.signIn().catch(() => undefined)} className="shrink-0 whitespace-nowrap rounded border border-line px-2 text-base sm:px-3">
+            <button type="button" onClick={() => void auth.signIn().catch(() => undefined)} className="shrink-0 whitespace-nowrap rounded border border-line px-1.5 text-base sm:px-3">
               {ja.auth.signIn}
             </button>
           )
@@ -63,12 +68,13 @@ export function Layout() {
   )
 }
 
-function NavLink({ to, children }: { to: '/' | '/list' | '/moderation'; children: React.ReactNode }) {
+function NavLink({ to, label, children }: { to: '/' | '/list' | '/near' | '/moderation'; label?: string; children: React.ReactNode }) {
   return (
     <Link
       to={to}
       activeOptions={{ exact: to === '/' }}
-      className="flex min-h-11 items-center whitespace-nowrap rounded px-2 text-ink no-underline hover:bg-paper sm:px-3"
+      aria-label={label}
+      className="flex min-h-11 items-center whitespace-nowrap rounded px-1.5 text-ink no-underline hover:bg-paper sm:px-3"
       activeProps={{ className: 'bg-paper font-bold', 'aria-current': 'page' }}
     >
       {children}

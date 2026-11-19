@@ -72,6 +72,24 @@ export function selectedIcon(): IconImage {
   return toImage(c, ctx)
 }
 
+/** 「住所から探す」で選んだ地点の印。施設の印と見分けられるよう、塗りつぶした濃い丸に白い縁 */
+export function pinIcon(): IconImage {
+  const size = 34
+  const { c, ctx } = canvas(size, size)
+  ctx.beginPath()
+  ctx.arc(size / 2, size / 2, size / 2 - 3, 0, Math.PI * 2)
+  ctx.fillStyle = '#1a1a1a'
+  ctx.fill()
+  ctx.lineWidth = 4
+  ctx.strokeStyle = '#ffffff'
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.arc(size / 2, size / 2, 4, 0, Math.PI * 2)
+  ctx.fillStyle = '#ffffff'
+  ctx.fill()
+  return toImage(c, ctx)
+}
+
 /** まとめ表示の印。label は件数（空文字のときは件数なし） */
 export function clusterIcon(label: string): IconImage {
   const h = 34
