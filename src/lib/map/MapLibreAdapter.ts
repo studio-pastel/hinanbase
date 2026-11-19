@@ -8,7 +8,7 @@ import type { Point } from 'geojson'
 import { Protocol } from 'pmtiles'
 import { DISPLAY_STATES, HAZARD_KEYS, type DisplayState } from '../../../shared/types.ts'
 import { ICON_PIXEL_RATIO, clusterIcon, markerIcon, pinIcon, selectedIcon } from './icons.ts'
-import { clusterCountAttributes, type HazardOverlay, type MapAdapter, type MapFeature, type MapFilter, type MapMountOptions } from './MapAdapter.ts'
+import { METRIC_SCALES, METRIC_UNKNOWN_COLOR, clusterCountAttributes, type ColorBy, type HazardOverlay, type MapAdapter, type MapFeature, type MapFilter, type MapMountOptions } from './MapAdapter.ts'
 
 let protocolReady = false
 function ensureProtocol() {
@@ -35,6 +35,8 @@ const SOURCE = 'shelters'
 const LAYER_CLUSTERS = 'shelter-clusters'
 const LAYER_POINTS = 'shelter-points'
 const LAYER_SELECTED = 'shelter-selected'
+const METRIC_SOURCE = 'metric'
+const LAYER_METRIC = 'shelter-metric'
 
 const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)
 
@@ -50,6 +52,8 @@ export class MapLibreAdapter implements MapAdapter {
   private styleReady = false
   private overlay: HazardOverlay | null = null
   private hazardAttribution = ''
+  private colorBy: ColorBy = 'state'
+  private hasMetric = false
 
   mount(container: HTMLElement, options: MapMountOptions): void {
     ensureProtocol()
@@ -145,12 +149,27 @@ export class MapLibreAdapter implements MapAdapter {
           'icon-ignore-placement': true,
         },
       })
+      if (options.mode === 'national' && options.pointsUrl) {
+        // 色分け用：全施設を点で持つタイル。色分けしている間だけ表示する
+        map.addSource(METRIC_SOURCE, { type: 'vector', url: `pmtiles://${options.pointsUrl}` })
+        map.addLayer({
+          id: LAYER_METRIC, type: 'circle', source: METRIC_SOURCE, 'source-layer': 'shelters',
+          layout: { visibility: 'none' },
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 1.6, 8, 2.6, 12, 5, 15, 8],
+            'circle-stroke-color': '#333333',
+            'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 4, 0.2, 10, 0.6, 14, 1],
+          },
+        })
+        this.hasMetric = true
+      }
       map.addLayer({
         id: LAYER_SELECTED, type: 'symbol', source: SOURCE, 'source-layer': 'shelters',
         filter: ['==', ['get', 'id'], ''],
         layout: { 'icon-image': 'selected', 'icon-allow-overlap': true, 'icon-ignore-placement': true },
       })
       this.loaded = true
+      this.applyColorBy()
       this.applyFilter()
       this.applySelected()
       // 選んだ地点・検索した地点。施設の印より上に描く
@@ -171,7 +190,9 @@ export class MapLibreAdapter implements MapAdapter {
       }
 
       map.on('click', (e) => {
-        const hits = map.queryRenderedFeatures(e.point, { layers: [LAYER_POINTS, LAYER_CLUSTERS] })
+        const layers = this.colorBy !== 'state' && this.hasMetric ? [LAYER_METRIC] : [LAYER_POINTS, LAYER_CLUSTERS]
+        const box: [[number, number], [number, number]] = [[e.point.x - 6, e.point.y - 6], [e.point.x + 6, e.point.y + 6]]
+        const hits = map.queryRenderedFeatures(layers[0] === LAYER_METRIC ? box : e.point, { layers })
         const hit = hits[0]
         if (!hit) { this.select(null); return }
         if (hit.layer.id === LAYER_CLUSTERS) {
@@ -181,7 +202,7 @@ export class MapLibreAdapter implements MapAdapter {
         }
         this.select(toFeature(hit))
       })
-      for (const layer of [LAYER_POINTS, LAYER_CLUSTERS]) {
+      for (const layer of [LAYER_POINTS, LAYER_CLUSTERS, ...(this.hasMetric ? [LAYER_METRIC] : [])]) {
         map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer' })
         map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = '' })
       }
@@ -219,6 +240,27 @@ export class MapLibreAdapter implements MapAdapter {
   setHazardOverlay(overlay: HazardOverlay | null): void {
     this.overlay = overlay
     this.applyOverlay()
+  }
+
+  setColorBy(colorBy: ColorBy): void {
+    this.colorBy = colorBy
+    this.applyColorBy()
+  }
+
+  /** 色分けの切り替え。指標のときは、まとめ表示と印を隠し、全施設の点を指標の色で描く */
+  private applyColorBy() {
+    const map = this.map
+    if (!map || !this.loaded || !this.hasMetric) return
+    const metric = this.colorBy === 'state' ? null : METRIC_SCALES[this.colorBy]
+    map.setLayoutProperty(LAYER_METRIC, 'visibility', metric ? 'visible' : 'none')
+    map.setLayoutProperty(LAYER_POINTS, 'visibility', metric ? 'none' : 'visible')
+    map.setLayoutProperty(LAYER_CLUSTERS, 'visibility', metric ? 'none' : 'visible')
+    if (!metric) return
+    const value: ExpressionSpecification = ['coalesce', ['get', metric.attr], -1]
+    const match = ['match', value, ...metric.colors.flatMap((c, i) => [i, c]), METRIC_UNKNOWN_COLOR] as unknown as ExpressionSpecification
+    map.setPaintProperty(LAYER_METRIC, 'circle-color', match)
+    // 階級の高い点を上に描く
+    map.setLayoutProperty(LAYER_METRIC, 'circle-sort-key', value)
   }
 
   /** 重ねるハザードマップを入れ替える。地図の下地のすぐ上（施設の印より下）に入れる */
@@ -262,6 +304,7 @@ export class MapLibreAdapter implements MapAdapter {
     this.map = null
     this.loaded = false
     this.styleReady = false
+    this.hasMetric = false
   }
 
   private select(feature: MapFeature | null) {
@@ -290,6 +333,7 @@ export class MapLibreAdapter implements MapAdapter {
     if (ac === 'none') pointConds.push(['==', ['get', 'ac'], 'none'])
     if (overlap === 'only') pointConds.push(['>', ['get', 'hm'], 0])
     map.setFilter(LAYER_POINTS, ['all', ...pointConds] as FilterSpecification)
+    if (this.hasMetric) map.setFilter(LAYER_METRIC, ['all', ...pointConds.slice(1)] as FilterSpecification)
 
     // まとめ表示：合算済みの属性から件数を出す。条件が 2 つ以上重なると正確な件数は求められないので、
     // 該当しうるまとまりの印だけを件数なしで表示する

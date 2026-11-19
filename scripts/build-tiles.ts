@@ -33,3 +33,17 @@ const args = [
 ]
 execFileSync('tippecanoe', args, { stdio: 'inherit' })
 console.log(`生成: ${out}`)
+
+// 色分け用：まとめずに全施設を点で持つ（全国を見たときにも分布が分かるように。DATA_NOTES 14.5）
+const pointsOut = join(outDir, 'points.pmtiles')
+execFileSync('tippecanoe', [
+  '-o', pointsOut, '--force', '-l', 'shelters', '-P', '--quiet',
+  `-Z${MIN_ZOOM}`, `-z${POINT_ZOOM}`, '-r1', '-b0',
+  ...['ne', 'ns', 'acn', 'hm', ...sums.filter((a) => /^[hs]\d$/.test(a))].map((a) => `-y${a}`),
+  '-yid', '-yname', '-ymuni', '-ykind', '-yhz', '-ystate', '-yrs', '-yac', '-yfd', '-ytd', '-ysd', '-yls', '-yrd',
+  '--no-feature-limit', '--no-tile-size-limit',
+  '--name=HinanBase shelters (points)',
+  '--attribution=国土地理院「指定緊急避難場所・指定避難所データ」',
+  FACILITIES_NDJSON,
+], { stdio: 'inherit' })
+console.log(`生成: ${pointsOut}`)

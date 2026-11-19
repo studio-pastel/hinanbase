@@ -69,6 +69,7 @@ export function FacilityPage() {
         hazardOverlay={overlay}
       />
       <HazardOverlayPicker value={overlay} onChange={setOverlay} />
+      <PointDepthSection depth={facility.depth} />
 
       <Designations facility={facility} />
       <ScoreBars facility={facility} texts={muni.data?.breakdown_texts} />
@@ -409,6 +410,32 @@ function Amenities({ facility, muniKey }: { facility: Facility; muniKey: string 
           </div>
         ))}
       </div>
+    </section>
+  )
+}
+
+/** 施設の地点の想定浸水深・土砂災害の区域（DATA_NOTES 14.5）。分からない種別は「データなし・未確認」 */
+function PointDepthSection({ depth }: { depth: Facility['depth'] }) {
+  const t = ja.colorBy
+  const rows: [string, string][] = [
+    [t.names.flood, depth?.flood !== undefined ? t.depthClasses[depth.flood]! : t.unknown],
+    [t.names.tsunami, depth?.tsunami !== undefined ? t.depthClasses[depth.tsunami]! : t.unknown],
+    [t.names.storm_surge, depth?.storm_surge !== undefined ? t.depthClasses[depth.storm_surge]! : t.unknown],
+    [t.names.landslide, depth?.landslide !== undefined ? t.landslideClasses[depth.landslide]! : t.unknown],
+  ]
+  return (
+    <section aria-labelledby="depth-h" className="rounded border border-line bg-surface p-4 text-base">
+      <h2 id="depth-h" className="m-0 mb-2 text-lg font-bold">{ja.facility.depthTitle}</h2>
+      <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+        {rows.map(([k, v]) => (
+          <div key={k} className="contents">
+            <dt className="text-ink-soft">{k}</dt>
+            <dd className="m-0 font-bold">{v}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="m-0 mt-2 text-sm text-ink-soft">{t.depthNote}</p>
+      <p className="m-0 mt-1 text-sm text-ink-soft">{ja.facility.depthSource}</p>
     </section>
   )
 }

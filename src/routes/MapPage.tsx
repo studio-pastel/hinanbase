@@ -10,15 +10,18 @@ import { fmt, ja, pct } from '../i18n/ja.ts'
 import { searchAddress, type SearchOutcome } from '../lib/addressSearch.ts'
 import { DATA_BASE_URL, useMuniIndex, useNational } from '../lib/data.ts'
 import { loadMapView, saveMapView } from '../lib/places.ts'
-import { isClusterCountUnavailable, type HazardOverlay, type MapFeature, type MapFilter } from '../lib/map/index.ts'
+import { COLOR_BYS, METRIC_SCALES, METRIC_UNKNOWN_COLOR, isClusterCountUnavailable, type ColorBy, type HazardOverlay, type MapFeature, type MapFilter } from '../lib/map/index.ts'
 
 const tilesUrl = `${DATA_BASE_URL || window.location.origin}/tiles/shelters.pmtiles`
+const pointsUrl = `${DATA_BASE_URL || window.location.origin}/tiles/points.pmtiles`
 
 export function MapPage() {
   const national = useNational()
   const [filter, setFilter] = useState<MapFilter>({ kind: 'all', hazard: 'all', states: [...DISPLAY_STATES], ac: 'all', overlap: 'all' })
   const [selected, setSelected] = useState<MapFeature | null>(null)
   const [overlay, setOverlay] = useState<HazardOverlay | null>(null)
+  // 設備の情報はほぼ公表されていないため、最初は分かっている指標（洪水の浸水深）で色分けする（DATA_NOTES 14.5）
+  const [colorBy, setColorBy] = useState<ColorBy>('flood')
   // スマホでは絞り込みを閉じた状態から始め、地図を広く見せる
   const [panelOpen, setPanelOpen] = useState(() => window.matchMedia('(min-width: 768px)').matches)
   // 前回見ていた場所（なければ保存した場所）から表示する。どちらもなければ全国
@@ -55,6 +58,8 @@ export function MapPage() {
         <MapView
           mode="national"
           tilesUrl={tilesUrl}
+          pointsUrl={pointsUrl}
+          colorBy={colorBy}
           view={initialView ?? undefined}
           target={target}
           className="absolute inset-0"
@@ -73,6 +78,12 @@ export function MapPage() {
             panelOpen={panelOpen}
             onTogglePanel={() => setPanelOpen((v) => !v)}
           />
+          <label className="mt-1 flex w-fit max-w-full items-center gap-1 rounded border border-line bg-surface py-0.5 pl-2 pr-1 text-sm shadow">
+            <span className="shrink-0 font-bold">{ja.colorBy.label}</span>
+            <select value={colorBy} onChange={(e) => setColorBy(e.target.value as ColorBy)} className="min-h-9 min-w-0 rounded border-0 bg-white px-1 text-sm">
+              {COLOR_BYS.map((c) => <option key={c} value={c}>{ja.colorBy.names[c]}</option>)}
+            </select>
+          </label>
           {selected && <SelectedCard feature={selected} onClose={() => setSelected(null)} />}
         </div>
 
@@ -102,7 +113,7 @@ export function MapPage() {
           </div>
           <div className="space-y-4 px-4 pb-4 text-base">
             <FilterControls filter={filter} onChange={setFilter} />
-            <Legend />
+            {colorBy === 'state' ? <Legend /> : <MetricLegend colorBy={colorBy} />}
             <p className="m-0">
               <Link to="/list">{ja.map.listAlternative}</Link>
             </p>
@@ -115,8 +126,12 @@ export function MapPage() {
         {/* 凡例は常時表示（SPEC §3.6）。パネルを閉じているときは地図の左下に小さく出す */}
         {!panelOpen && (
           <div className="pointer-events-none absolute bottom-9 left-2 z-10 flex max-w-[calc(100%-1rem)] flex-wrap gap-x-2 gap-y-0.5 rounded bg-surface/90 px-2 py-1 text-xs shadow md:bottom-10 md:text-sm">
-            {DISPLAY_STATES.map((s) => <StateLabel key={s} state={s} />)}
-            <span className="flex items-center gap-1"><AttentionMark />{ja.state.attentionShort}</span>
+            {colorBy === 'state' ? (
+              <>
+                {DISPLAY_STATES.map((s) => <StateLabel key={s} state={s} />)}
+                <span className="flex items-center gap-1"><AttentionMark />{ja.state.attentionShort}</span>
+              </>
+            ) : <MetricLegendItems colorBy={colorBy} />}
           </div>
         )}
       </div>
@@ -315,6 +330,40 @@ function SelectedCard({ feature, onClose }: { feature: MapFeature; onClose: () =
           {ja.map.openDetail}
         </Link>
       </p>
+    </section>
+  )
+}
+
+function metricLabels(colorBy: Exclude<ColorBy, 'state'>): readonly string[] {
+  const t = ja.colorBy
+  return colorBy === 'road' ? t.roadClasses : colorBy === 'landslide' ? t.landslideClasses : t.depthClasses
+}
+
+function MetricDot({ color }: { color: string }) {
+  return <span aria-hidden="true" className="inline-block h-3 w-3 shrink-0 rounded-full border border-[#333]" style={{ background: color }} />
+}
+
+function MetricLegendItems({ colorBy }: { colorBy: Exclude<ColorBy, 'state'> }) {
+  const labels = metricLabels(colorBy)
+  return (
+    <>
+      {METRIC_SCALES[colorBy].colors.map((c, i) => (
+        <span key={c + i} className="flex items-center gap-1"><MetricDot color={c} />{labels[i]}</span>
+      ))}
+      <span className="flex items-center gap-1"><MetricDot color={METRIC_UNKNOWN_COLOR} />{ja.colorBy.unknown}</span>
+    </>
+  )
+}
+
+function MetricLegend({ colorBy }: { colorBy: Exclude<ColorBy, 'state'> }) {
+  const t = ja.colorBy
+  const note = colorBy === 'road' ? t.roadNote : colorBy === 'landslide' ? t.landslideNote : t.depthNote
+  return (
+    <section aria-label={ja.state.legend} className="border-t border-line pt-3">
+      <h2 className="m-0 mb-1 text-base font-bold">{ja.state.legend}：{t.names[colorBy]}</h2>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm"><MetricLegendItems colorBy={colorBy} /></div>
+      <p className="m-0 mt-2 text-sm text-ink-soft">{note}</p>
+      <p className="m-0 mt-1 text-sm text-ink-soft">{t.stateNote}</p>
     </section>
   )
 }

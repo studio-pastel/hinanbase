@@ -69,6 +69,7 @@ export function ListMunisPage() {
   const { prefCode } = useParams({ from: '/list/$prefCode' })
   const index = useMuniIndex()
   const pref = index.data?.prefs.find((p) => p.code === prefCode)
+  const [sort, setSort] = useState<'code' | 'deep3'>('code')
   return (
     <Shell
       title={pref?.name ?? ja.list.munis}
@@ -79,14 +80,31 @@ export function ListMunisPage() {
       {pref && (
         <>
           <p className="text-base text-ink-soft">{ja.list.muniNote}</p>
-          <ul className="m-0 grid list-none grid-cols-1 gap-x-6 p-0 min-[420px]:grid-cols-2 sm:grid-cols-3">
-            {pref.munis.map((m) => (
-              <li key={m.key} className="flex min-h-12 items-center justify-between gap-2 border-b border-line">
-                <Link to="/list/$prefCode/$muniKey" params={{ prefCode, muniKey: m.key }} className="flex-1 py-2.5">{m.name}</Link>{' '}
-                <span className="text-sm text-ink-soft tabular-nums">{fmt.format(m.count)}{ja.unitCount}</span>
+          {pref.munis.some((m) => m.shelters !== undefined) && (
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-bold">{ja.list.sortLabel}</span>
+              {(['code', 'deep3'] as const).map((k) => (
+                <button key={k} type="button" aria-pressed={sort === k} onClick={() => setSort(k)}
+                  className={sort === k ? 'min-h-9 rounded border-2 border-ink bg-ink px-3 font-bold text-white' : 'min-h-9 rounded border-2 border-line bg-white px-3'}>
+                  {ja.list.sort[k]}
+                </button>
+              ))}
+            </div>
+          )}
+          <ul className="m-0 grid list-none grid-cols-1 gap-x-6 p-0 sm:grid-cols-2">
+            {[...pref.munis].sort((a, b) => (sort === 'deep3' ? (b.deep3 ?? 0) - (a.deep3 ?? 0) : 0)).map((m) => (
+              <li key={m.key} className="border-b border-line py-1.5">
+                <div className="flex min-h-10 items-center justify-between gap-2">
+                  <Link to="/list/$prefCode/$muniKey" params={{ prefCode, muniKey: m.key }} className="flex-1 py-1">{m.name}</Link>{' '}
+                  <span className="text-sm text-ink-soft tabular-nums">{fmt.format(m.count)}{ja.unitCount}</span>
+                </div>
+                {m.shelters !== undefined && m.shelters > 0 && (
+                  <p className="m-0 text-sm text-ink-soft tabular-nums">{ja.list.muniStats(m.shelters, m.deep3 ?? 0, m.landslide ?? 0)}</p>
+                )}
               </li>
             ))}
           </ul>
+          <p className="mt-2 text-sm text-ink-soft">{ja.list.muniStatsNote}</p>
         </>
       )}
     </Shell>

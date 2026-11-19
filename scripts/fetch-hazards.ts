@@ -36,7 +36,7 @@ export function tileOf(lat: number, lng: number, z: number): { x: number; y: num
 }
 
 let lastStart = 0
-let requests = 0
+export let requests = 0
 async function throttle() {
   const wait = Math.max(0, lastStart + MIN_INTERVAL_MS - Date.now())
   lastStart = Date.now() + wait
@@ -45,7 +45,7 @@ async function throttle() {
 
 /** タイルを取得する。データがない場所は null。取得に失敗したら undefined（結果を書かない） */
 const inflight = new Map<string, Promise<Buffer | null | undefined>>()
-function getTile(layer: string, z: number, x: number, y: number): Promise<Buffer | null | undefined> {
+export function getTile(layer: string, z: number, x: number, y: number): Promise<Buffer | null | undefined> {
   const key = `${layer}/${z}/${x}/${y}`
   const hit = inflight.get(key)
   if (hit) return hit

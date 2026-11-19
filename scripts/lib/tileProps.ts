@@ -31,7 +31,21 @@ export function tileProps(f: Facility, muniKey: string): Record<string, string |
     hm: f.scores.hazard_check.status === 'attention' ? 1 : 0,
   }
   if (ac !== undefined) props.ac = ac
+  // 色分けの指標（DATA_NOTES 14.5）。分からないものは属性自体を持たせない（未確認）
+  const d = f.depth
+  if (d?.flood !== undefined) props.fd = d.flood
+  if (d?.tsunami !== undefined) props.td = d.tsunami
+  if (d?.storm_surge !== undefined) props.sd = d.storm_surge
+  if (d?.landslide !== undefined) props.ls = d.landslide
+  const rd = roadBand(f.road?.distance_m)
+  if (rd !== undefined) props.rd = rd
   HAZARD_KEYS.forEach((_, i) => { props[`h${i}`] = hz & (1 << i) ? 1 : 0 })
   DISPLAY_STATES.forEach((s, i) => { props[`s${i}`] = f.scores.display_state === s ? 1 : 0 })
   return props
+}
+
+/** 緊急輸送道路までの距離の区分：0=500m 未満 1=2km 未満 2=5km 未満 3=5km 以上（軸D と同じ区切り） */
+export function roadBand(m: number | null | undefined): number | undefined {
+  if (m === null || m === undefined) return undefined
+  return m < 500 ? 0 : m < 2000 ? 1 : m < 5000 ? 2 : 3
 }

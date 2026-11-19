@@ -31,10 +31,10 @@ const national: NationalSummary = {
 writeFileSync(join(summaryDir, 'national.json'), JSON.stringify(national))
 
 const prefs = new Map<string, PrefIndexEntry>()
-for (const m of report.munis as { key: string; prefCode: string; prefName: string; muniName: string; count: number }[]) {
+for (const m of report.munis as { key: string; prefCode: string; prefName: string; muniName: string; count: number; shelters?: number; deep3?: number; landslide?: number }[]) {
   const p = prefs.get(m.prefCode) ?? { code: m.prefCode, name: m.prefName, count: 0, munis: [] }
   p.count += m.count
-  p.munis.push({ key: m.key, name: m.muniName, count: m.count })
+  p.munis.push({ key: m.key, name: m.muniName, count: m.count, ...(m.shelters !== undefined ? { shelters: m.shelters, deep3: m.deep3, landslide: m.landslide } : {}) })
   prefs.set(m.prefCode, p)
 }
 const muniIndex: MuniIndexFile = {

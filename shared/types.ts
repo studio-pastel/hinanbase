@@ -108,6 +108,21 @@ export interface Scores {
   breakdown: Record<string, unknown>
 }
 
+/**
+ * 浸水深の階級：1=0.5m未満 2=0.5〜3m 3=3〜5m 4=5〜10m 5=10m以上。
+ * 0 は「その一帯にデータはあるが、地点に色がない」（想定区域の外とは限らない）。
+ * 項目がない種別は、データがない・取得できなかった（未確認）
+ */
+export type DepthRank = 0 | 1 | 2 | 3 | 4 | 5
+export interface PointDepth {
+  flood?: DepthRank
+  tsunami?: DepthRank
+  storm_surge?: DepthRank
+  /** 土砂災害：1=警戒区域 2=特別警戒区域 0=地点に色がない */
+  landslide?: 0 | 1 | 2
+  checked_at: string
+}
+
 export interface Facility {
   id: string
   name: string
@@ -122,6 +137,8 @@ export interface Facility {
   merge_rules: string[]
   /** 最寄りの緊急輸送道路。指定避難所の指定がある施設にだけ付ける。未計算なら項目自体がない */
   road?: RoadAccess
+  /** 施設の地点の想定浸水深などの階級（ハザードマップポータルサイトのタイルの色から読む。DATA_NOTES 14.5）。未取得なら項目自体がない */
+  depth?: PointDepth
   amenities: Record<string, AmenityValue>
   scores: Scores
 }
@@ -141,6 +158,10 @@ export interface MuniIndexEntry {
   key: string
   name: string
   count: number
+  /** 指定避難所の指定がある施設の数と、そのうち地点の想定浸水深（洪水・津波・高潮のいずれか）が 3m 以上の数、土砂災害の区域内の数（DATA_NOTES 14.5） */
+  shelters?: number
+  deep3?: number
+  landslide?: number
 }
 export interface PrefIndexEntry {
   code: string

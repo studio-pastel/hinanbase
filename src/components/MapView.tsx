@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { ja } from '../i18n/ja.ts'
-import { createMapAdapter, type HazardOverlay, type MapAdapter, type MapFeature, type MapFilter, type MapMountOptions } from '../lib/map/index.ts'
+import { createMapAdapter, type ColorBy, type HazardOverlay, type MapAdapter, type MapFeature, type MapFilter, type MapMountOptions } from '../lib/map/index.ts'
 
 type Props = {
   className?: string
@@ -9,11 +9,12 @@ type Props = {
   selectedId?: string | null
   onSelect?: (f: MapFeature | null) => void
   hazardOverlay?: HazardOverlay | null
+  colorBy?: ColorBy
   /** 地図を動かし終えたとき */
   onViewChange?: (lat: number, lng: number, zoom: number) => void
 } & (
   /** view：最初に表示する位置。target：検索した地点（変わるたびに印を置いて移動する） */
-  | { mode: 'national'; tilesUrl: string; view?: { lat: number; lng: number; zoom: number }; target?: { lat: number; lng: number; zoom: number } | null }
+  | { mode: 'national'; tilesUrl: string; pointsUrl?: string; view?: { lat: number; lng: number; zoom: number }; target?: { lat: number; lng: number; zoom: number } | null }
   | { mode: 'single'; lat: number; lng: number; state: MapFeature['state']; restrictedOnly: boolean }
   | { mode: 'pick'; tilesUrl: string; lat: number; lng: number; zoom: number; onPick: (lat: number, lng: number) => void }
 )
@@ -51,7 +52,7 @@ export function MapView(props: Props) {
       const p = latest.current
       const options: MapMountOptions =
         p.mode === 'national'
-          ? { mode: 'national', tilesUrl: p.tilesUrl, labels, ...(p.view ? { view: p.view } : {}) }
+          ? { mode: 'national', tilesUrl: p.tilesUrl, labels, ...(p.view ? { view: p.view } : {}), ...(p.pointsUrl ? { pointsUrl: p.pointsUrl } : {}) }
           : p.mode === 'pick'
             ? { mode: 'pick', tilesUrl: p.tilesUrl, lat: p.lat, lng: p.lng, zoom: p.zoom, labels }
             : { mode: 'single', lat: p.lat, lng: p.lng, state: p.state, restrictedOnly: p.restrictedOnly, labels }
@@ -61,6 +62,7 @@ export function MapView(props: Props) {
       if (p.filter) a.setFilter(p.filter)
       a.setSelected(p.selectedId ?? null)
       a.setHazardOverlay(p.hazardOverlay ?? null)
+      a.setColorBy(p.colorBy ?? 'state')
       a.onViewChange((lat, lng, zoom) => latest.current.onViewChange?.(lat, lng, zoom))
       if (p.mode === 'national' && p.target) a.setPin(p.target.lat, p.target.lng, p.target.zoom)
     })
@@ -80,6 +82,9 @@ export function MapView(props: Props) {
   useEffect(() => {
     adapterRef.current?.setHazardOverlay(props.hazardOverlay ?? null)
   }, [props.hazardOverlay])
+  useEffect(() => {
+    adapterRef.current?.setColorBy(props.colorBy ?? 'state')
+  }, [props.colorBy])
   // pick モード：外から地点が変わったとき（候補を選び直したときなど）に地図を合わせる
   const pinKey = props.mode === 'pick' ? `${props.lat},${props.lng},${props.zoom}` : ''
   useEffect(() => {

@@ -30,6 +30,19 @@ export interface MapFeature {
 export const HAZARD_OVERLAYS = ['flood', 'landslide', 'tsunami', 'storm_surge'] as const
 export type HazardOverlay = (typeof HAZARD_OVERLAYS)[number]
 
+/** 地図の色分け。state は表示状態（設備）。それ以外は施設の地点の指標で、全施設を点で描く（DATA_NOTES 14.5） */
+export const COLOR_BYS = ['state', 'flood', 'tsunami', 'storm_surge', 'landslide', 'road'] as const
+export type ColorBy = (typeof COLOR_BYS)[number]
+/** 指標ごとのタイルの属性と、階級ごとの色（浸水深・土砂はハザードマップポータルサイトの凡例の色） */
+export const METRIC_SCALES: Record<Exclude<ColorBy, 'state'>, { attr: string; colors: string[] }> = {
+  flood: { attr: 'fd', colors: ['#ffffff', '#F7F5A9', '#FFD8C0', '#FFB7B7', '#FF9191', '#F285C9'] },
+  tsunami: { attr: 'td', colors: ['#ffffff', '#F7F5A9', '#FFD8C0', '#FFB7B7', '#FF9191', '#F285C9'] },
+  storm_surge: { attr: 'sd', colors: ['#ffffff', '#F7F5A9', '#FFD8C0', '#FFB7B7', '#FF9191', '#F285C9'] },
+  landslide: { attr: 'ls', colors: ['#ffffff', '#E6C832', '#A50021'] },
+  road: { attr: 'rd', colors: ['#c6dbef', '#6baed6', '#2171b5', '#08306b'] },
+}
+export const METRIC_UNKNOWN_COLOR = '#9a9a9a'
+
 export interface MapLabels {
   zoomIn: string
   zoomOut: string
@@ -42,7 +55,7 @@ export interface MapLabels {
 
 export type MapMountOptions =
   /** view を渡すと、その位置から表示する（前回見ていた場所など） */
-  | { mode: 'national'; tilesUrl: string; labels: MapLabels; view?: { lat: number; lng: number; zoom: number } }
+  | { mode: 'national'; tilesUrl: string; pointsUrl?: string; labels: MapLabels; view?: { lat: number; lng: number; zoom: number } }
   | { mode: 'single'; lat: number; lng: number; state: DisplayState; restrictedOnly: boolean; labels: MapLabels }
   /** 地点を選ぶ（「住所から探す」で、照合した位置を確認・調整する）。施設も表示する。地図をタップすると地点が動く */
   | { mode: 'pick'; tilesUrl: string; lat: number; lng: number; zoom: number; labels: MapLabels }
@@ -61,6 +74,8 @@ export interface MapAdapter {
   onPick(callback: (lat: number, lng: number) => void): void
   /** ハザードマップを重ねる（null で消す）。施設の印より下に描く */
   setHazardOverlay(overlay: HazardOverlay | null): void
+  /** 色分けの指標を切り替える（national モード） */
+  setColorBy(colorBy: ColorBy): void
   destroy(): void
 }
 

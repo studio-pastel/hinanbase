@@ -79,7 +79,7 @@ const stats = {
   axis_evaluated: { habitability: 0, logistics: 0 },
   hazard_status: { attention: 0, no_overlap_found: 0, not_evaluated: 0 } as Record<string, number>,
 }
-const munis: { key: string; prefCode: string; prefName: string; muniName: string; count: number }[] = []
+const munis: { key: string; prefCode: string; prefName: string; muniName: string; count: number; shelters: number; deep3: number; landslide: number }[] = []
 let changedMunis = 0
 const used = new Set<string>()
 for (const file of readdirSync(muniDir).sort()) {
@@ -100,6 +100,7 @@ for (const file of readdirSync(muniDir).sort()) {
     }
   }
   const shared = new Set([...seen].filter(([, n]) => n >= 2).map(([k]) => k))
+  const ms = { shelters: 0, deep3: 0, landslide: 0 }
   for (const [i, f] of muni.facilities.entries()) {
     const next = amenities.get(f.id) ?? {}
     if (amenities.has(f.id)) used.add(f.id)
@@ -123,6 +124,12 @@ for (const file of readdirSync(muniDir).sort()) {
     if (f.scores.habitability !== null) stats.axis_evaluated.habitability++
     if (f.scores.logistics !== null) stats.axis_evaluated.logistics++
     stats.hazard_status[f.scores.hazard_check.status]!++
+    if (kind & 2) {
+      ms.shelters++
+      const d = f.depth
+      if (d && Math.max(d.flood ?? 0, d.tsunami ?? 0, d.storm_surge ?? 0) >= 3) ms.deep3++
+      if (d && (d.landslide ?? 0) >= 1) ms.landslide++
+    }
     ndjson.push(JSON.stringify({
       type: 'Feature', geometry: { type: 'Point', coordinates: [f.lng, f.lat] }, properties: tileProps(f, muni.muni_key),
     }))
@@ -136,7 +143,7 @@ for (const file of readdirSync(muniDir).sort()) {
     writeFileSync(path, JSON.stringify({ ...head, breakdown_texts: texts, facilities }))
     changedMunis++
   }
-  munis.push({ key: muni.muni_key, prefCode: muni.pref_code, prefName: muni.pref_name, muniName: muni.muni_name, count: muni.facilities.length })
+  munis.push({ key: muni.muni_key, prefCode: muni.pref_code, prefName: muni.pref_name, muniName: muni.muni_name, count: muni.facilities.length, ...ms })
 }
 writeFileSync(FACILITIES_NDJSON, ndjson.join('\n') + '\n')
 writeFileSync(DERIVED_REPORT, JSON.stringify({ generated_at: now, ...stats, muni_count: munis.length, munis }))
