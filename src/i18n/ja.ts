@@ -90,6 +90,7 @@ export const ja = {
       good: '生活環境と到達性がどちらも 75 以上で、想定区域との重なりが見つからない',
     } satisfies Record<DisplayState, string>,
     restrictedLegend: '白抜きの印：受入対象者が限定された避難所',
+    attentionShort: '想定区域と重なる',
     attentionLegend: '黒い三角の印：指定されている災害の想定区域と、地点が重なっている（要確認）。設備の情報がなくても表示します。指定の誤りを意味するものではありません',
     clusterLegend: '数字の印：その付近の施設数（拡大すると個別に表示）',
     phase1Note: '設備情報が全項目の4割以上集まった施設から、色が付きます。それまでは「未確認」のままです。',
@@ -116,6 +117,21 @@ export const ja = {
     attributionHazard: 'ハザードマップポータルサイト',
     selectedClose: '閉じる',
     openDetail: '施設の詳細を見る',
+  },
+
+  search: {
+    label: '住所・地名で探す',
+    placeholder: '住所・地名（例：世田谷区太子堂）',
+    submit: '探す',
+    filters: '絞り込み',
+    choosePref: 'どの都道府県ですか？',
+    chooseTown: '丁目を選んでください',
+    notFound: '見つかりませんでした。市区町村名から入力してください（例：横浜市中区、府中市）。',
+    muniOnly: (name: string) => `町名が見つからなかったため、${name}の中心を表示しています。`,
+    found: (name: string) => `${name}付近を表示しています（町丁目の代表点）。`,
+    nearLink: '近くの避難所を距離の順に見る',
+    privacy: '住所はこの端末の中だけで照合し、外部に送りません。',
+    close: '閉じる',
   },
 
   overlay: {

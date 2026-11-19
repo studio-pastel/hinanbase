@@ -41,7 +41,8 @@ export interface MapLabels {
 }
 
 export type MapMountOptions =
-  | { mode: 'national'; tilesUrl: string; labels: MapLabels }
+  /** view を渡すと、その位置から表示する（前回見ていた場所など） */
+  | { mode: 'national'; tilesUrl: string; labels: MapLabels; view?: { lat: number; lng: number; zoom: number } }
   | { mode: 'single'; lat: number; lng: number; state: DisplayState; restrictedOnly: boolean; labels: MapLabels }
   /** 地点を選ぶ（「住所から探す」で、照合した位置を確認・調整する）。施設も表示する。地図をタップすると地点が動く */
   | { mode: 'pick'; tilesUrl: string; lat: number; lng: number; zoom: number; labels: MapLabels }
@@ -52,8 +53,10 @@ export interface MapAdapter {
   /** 施設が選ばれたとき（null は選択解除） */
   onSelect(callback: (feature: MapFeature | null) => void): void
   setSelected(id: string | null): void
-  /** 地点（pick モード）を動かし、その位置を地図の中心にする */
+  /** 地点の印を置き（national・pick モード）、その位置を地図の中心にする */
   setPin(lat: number, lng: number, zoom?: number): void
+  /** 地図を動かし終えたとき（表示している位置を端末に覚えておくため） */
+  onViewChange(callback: (lat: number, lng: number, zoom: number) => void): void
   /** 地点（pick モード）を地図のタップで動かしたとき */
   onPick(callback: (lat: number, lng: number) => void): void
   /** ハザードマップを重ねる（null で消す）。施設の印より下に描く */

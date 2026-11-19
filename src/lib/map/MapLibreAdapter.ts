@@ -44,6 +44,7 @@ export class MapLibreAdapter implements MapAdapter {
   private selectedId: string | null = null
   private selectCallback: ((f: MapFeature | null) => void) | null = null
   private pickCallback: ((lat: number, lng: number) => void) | null = null
+  private viewCallback: ((lat: number, lng: number, zoom: number) => void) | null = null
   private pin: [number, number] | null = null
   private loaded = false
   private styleReady = false
@@ -73,8 +74,8 @@ export class MapLibreAdapter implements MapAdapter {
         },
         layers: [{ id: 'base', type: 'raster', source: 'base' }],
       },
-      center: single || pick ? [options.lng, options.lat] : [137.2, 37.6],
-      zoom: single ? 15 : pick ? options.zoom : 4.4,
+      center: single || pick ? [options.lng, options.lat] : options.view ? [options.view.lng, options.view.lat] : [137.2, 37.6],
+      zoom: single ? 15 : pick ? options.zoom : options.view?.zoom ?? 4.4,
       minZoom: 4,
       maxZoom: 18,
       maxBounds: [[110, 15], [165, 52]],
@@ -152,11 +153,15 @@ export class MapLibreAdapter implements MapAdapter {
       this.loaded = true
       this.applyFilter()
       this.applySelected()
+      // 選んだ地点・検索した地点。施設の印より上に描く
+      map.addSource('pin', { type: 'geojson', data: this.pinData() })
+      map.addLayer({ id: 'pin', type: 'symbol', source: 'pin', layout: { 'icon-image': 'pin', 'icon-allow-overlap': true, 'icon-ignore-placement': true } })
+      map.on('moveend', () => {
+        const c = map.getCenter()
+        this.viewCallback?.(c.lat, c.lng, map.getZoom())
+      })
 
       if (pick) {
-        // 選んだ地点。施設の印より上に描く
-        map.addSource('pin', { type: 'geojson', data: this.pinData() })
-        map.addLayer({ id: 'pin', type: 'symbol', source: 'pin', layout: { 'icon-image': 'pin', 'icon-allow-overlap': true, 'icon-ignore-placement': true } })
         map.on('click', (e) => {
           this.pin = [e.lngLat.lng, e.lngLat.lat]
           this.updatePin()
@@ -207,6 +212,10 @@ export class MapLibreAdapter implements MapAdapter {
     this.pickCallback = callback
   }
 
+  onViewChange(callback: (lat: number, lng: number, zoom: number) => void): void {
+    this.viewCallback = callback
+  }
+
   setHazardOverlay(overlay: HazardOverlay | null): void {
     this.overlay = overlay
     this.applyOverlay()
@@ -239,7 +248,8 @@ export class MapLibreAdapter implements MapAdapter {
   }
 
   private pinData() {
-    return { type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: this.pin ?? [0, 0] }, properties: {} }
+    if (!this.pin) return { type: 'FeatureCollection' as const, features: [] }
+    return { type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: this.pin }, properties: {} }
   }
 
   private updatePin() {

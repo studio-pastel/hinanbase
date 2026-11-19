@@ -29,3 +29,27 @@ export function savePlaces(places: SavedPlace[]): void {
     // 保存できない環境（プライベートブラウズなど）では保存しない
   }
 }
+
+// 地図で最後に見ていた場所。次に開いたとき、全国ではなく自分の地域から表示するため（SPEC §6.1）。
+// 位置とズームだけを、この端末のブラウザ内に置く
+const VIEW_KEY = 'hinanbase:mapview:v1'
+export type MapViewState = { lat: number; lng: number; zoom: number }
+
+export function loadMapView(): MapViewState | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null') as Partial<MapViewState> | null
+    if (v && Number.isFinite(v.lat) && Number.isFinite(v.lng) && Number.isFinite(v.zoom)) return v as MapViewState
+  } catch {
+    // 読めなければ全国から表示する
+  }
+  const first = loadPlaces()[0]
+  return first ? { lat: first.lat, lng: first.lng, zoom: 13 } : null
+}
+
+export function saveMapView(v: MapViewState): void {
+  try {
+    localStorage.setItem(VIEW_KEY, JSON.stringify({ lat: +v.lat.toFixed(4), lng: +v.lng.toFixed(4), zoom: +v.zoom.toFixed(1) }))
+  } catch {
+    // 保存できない環境では保存しない
+  }
+}

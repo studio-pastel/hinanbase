@@ -1,11 +1,15 @@
 import { Link } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { DISPLAY_STATES, HAZARD_KEYS, KIND_EMERGENCY, KIND_SHELTER, type DisplayState, type HazardKey } from '../../shared/types.ts'
 import { HazardOverlayPicker } from '../components/HazardOverlayPicker.tsx'
 import { MapView } from '../components/MapView.tsx'
 import { AttentionMark, StateLabel, StateMark } from '../components/StateMark.tsx'
+import type { GeocodeHit } from '../../shared/geocode.ts'
+import type { PrefIndexEntry } from '../../shared/types.ts'
 import { fmt, ja, pct } from '../i18n/ja.ts'
-import { DATA_BASE_URL, useNational } from '../lib/data.ts'
+import { searchAddress, type SearchOutcome } from '../lib/addressSearch.ts'
+import { DATA_BASE_URL, useMuniIndex, useNational } from '../lib/data.ts'
+import { loadMapView, saveMapView } from '../lib/places.ts'
 import { isClusterCountUnavailable, type HazardOverlay, type MapFeature, type MapFilter } from '../lib/map/index.ts'
 
 const tilesUrl = `${DATA_BASE_URL || window.location.origin}/tiles/shelters.pmtiles`
@@ -15,20 +19,24 @@ export function MapPage() {
   const [filter, setFilter] = useState<MapFilter>({ kind: 'all', hazard: 'all', states: [...DISPLAY_STATES], ac: 'all', overlap: 'all' })
   const [selected, setSelected] = useState<MapFeature | null>(null)
   const [overlay, setOverlay] = useState<HazardOverlay | null>(null)
+  // スマホでは絞り込みを閉じた状態から始め、地図を広く見せる
   const [panelOpen, setPanelOpen] = useState(() => window.matchMedia('(min-width: 768px)').matches)
+  // 前回見ていた場所（なければ保存した場所）から表示する。どちらもなければ全国
+  const [initialView] = useState(() => loadMapView())
+  const [target, setTarget] = useState<{ lat: number; lng: number; zoom: number } | null>(null)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <section aria-label={ja.summary.label} className="flex flex-wrap items-baseline gap-x-6 gap-y-0 border-b border-line bg-surface px-3 py-1.5 text-base leading-snug sm:px-4">
+      <section aria-label={ja.summary.label} className="flex flex-wrap items-baseline gap-x-6 gap-y-0 border-b border-line bg-surface px-3 py-1 text-sm leading-snug sm:px-4 sm:py-1.5 sm:text-base">
         {national.data ? (
           <>
             <p className="m-0">
               {ja.summary.facilities}{' '}
-              <strong className="text-lg tabular-nums">{fmt.format(national.data.facility_count)}</strong> {ja.unitFacilities}
+              <strong className="tabular-nums sm:text-lg">{fmt.format(national.data.facility_count)}</strong> {ja.unitFacilities}
             </p>
             <p className="m-0">
               {ja.summary.withAmenity}{' '}
-              <strong className="text-lg tabular-nums">
+              <strong className="tabular-nums sm:text-lg">
                 {fmt.format(national.data.amenity_coverage.facilities_with_any)}
               </strong>{' '}
               {ja.unitFacilities}（{pct(national.data.amenity_coverage.ratio)}）
@@ -42,67 +50,57 @@ export function MapPage() {
         )}
       </section>
 
-      <div className="relative flex min-h-0 flex-1 flex-col">
-        <div className="relative min-h-[62dvh] flex-1 md:min-h-0">
-          <MapView
-            mode="national"
-            tilesUrl={tilesUrl}
-            className="absolute inset-0"
-            label={ja.map.label}
-            filter={filter}
-            selectedId={selected?.id ?? null}
-            onSelect={setSelected}
-            hazardOverlay={overlay}
+      {/* スマホでは地図を画面の高さいっぱいに取る（下にスクロールすると出典などが続く） */}
+      <div className="relative h-[calc(100dvh-11.75rem)] min-h-[380px] md:h-auto md:min-h-0 md:flex-1">
+        <MapView
+          mode="national"
+          tilesUrl={tilesUrl}
+          view={initialView ?? undefined}
+          target={target}
+          className="absolute inset-0"
+          label={ja.map.label}
+          filter={filter}
+          selectedId={selected?.id ?? null}
+          onSelect={setSelected}
+          hazardOverlay={overlay}
+          onViewChange={(lat, lng, zoom) => { if (zoom >= 8) saveMapView({ lat, lng, zoom }) }}
+        />
+
+        {/* 上：検索窓。スマホでは右に「絞り込み」ボタンを並べる */}
+        <div className="absolute left-2 right-14 top-2 z-20 md:left-[22rem] md:right-auto md:w-[26rem]">
+          <SearchBox
+            onGo={(lat, lng, zoom) => { setSelected(null); setTarget({ lat, lng, zoom }) }}
+            panelOpen={panelOpen}
+            onTogglePanel={() => setPanelOpen((v) => !v)}
           />
           {selected && <SelectedCard feature={selected} onClose={() => setSelected(null)} />}
         </div>
 
-        {/* 絞り込み：PC は地図の左に重ねる。モバイルは地図の下に置き、地図の出典表示を隠さない（SPEC §6.1） */}
-        <div className="z-10 max-h-[60vh] overflow-y-auto border-t border-line bg-surface md:absolute md:left-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-80 md:rounded md:border md:shadow-lg">
-          <button
-            type="button"
-            className="flex w-full items-center justify-between px-4 text-left text-base font-bold"
-            aria-expanded={panelOpen}
-            aria-controls="filter-panel"
-            onClick={() => setPanelOpen((v) => !v)}
-          >
-            <span>{ja.map.filters}・{ja.state.legend}</span>
-            <span aria-hidden="true">{panelOpen ? '−' : '＋'}</span>
-          </button>
-          {/* 「冷房なしだけを表示」はワンタップで（SPEC §6.1）。パネルを閉じていても押せる */}
-          <div className="px-4 pb-2">
-            <button
-              type="button"
-              aria-pressed={filter.ac === 'none'}
-              onClick={() => setFilter({ ...filter, ac: filter.ac === 'none' ? 'all' : 'none' })}
-              className={
-                filter.ac === 'none'
-                  ? 'w-full rounded border-2 border-ink bg-ink px-3 py-2 text-base font-bold text-white'
-                  : 'w-full rounded border-2 border-ink bg-white px-3 py-2 text-base font-bold'
-              }
-            >
+        {/* 絞り込み・凡例・ハザード：PC は地図の左に重ねる。スマホは検索窓の下に開く */}
+        <div
+          id="filter-panel"
+          hidden={!panelOpen}
+          className="absolute inset-x-2 top-16 z-30 max-h-[calc(100%-5.5rem)] overflow-y-auto rounded border border-line bg-surface shadow-lg md:inset-x-auto md:left-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-80"
+        >
+          <div className="flex items-center justify-between px-4 pt-2">
+            <h2 className="m-0 text-base font-bold">{ja.map.filters}・{ja.state.legend}</h2>
+            <button type="button" onClick={() => setPanelOpen(false)} aria-label={ja.search.close} className="min-h-11 rounded px-3 text-xl leading-none hover:bg-paper">×</button>
+          </div>
+          <div className="space-y-2 px-4 pb-2">
+            <ToggleButton on={filter.ac === 'none'} onClick={() => setFilter({ ...filter, ac: filter.ac === 'none' ? 'all' : 'none' })}>
               {filter.ac === 'none' ? ja.map.acNoneOn : ja.map.acNone}
-            </button>
-            {filter.ac === 'none' && <p className="m-0 mt-1 text-sm text-ink-soft">{ja.map.acNoneHelp}</p>}
+            </ToggleButton>
+            {filter.ac === 'none' && <p className="m-0 text-sm text-ink-soft">{ja.map.acNoneHelp}</p>}
             {/* 表示状態は設備の回答が集まるまでグレーのままなので、想定区域との重なりは別の絞り込みで探せるようにする（DATA_NOTES 12.3） */}
-            <button
-              type="button"
-              aria-pressed={filter.overlap === 'only'}
-              onClick={() => setFilter({ ...filter, overlap: filter.overlap === 'only' ? 'all' : 'only' })}
-              className={
-                filter.overlap === 'only'
-                  ? 'mt-2 w-full rounded border-2 border-ink bg-ink px-3 py-2 text-base font-bold text-white'
-                  : 'mt-2 w-full rounded border-2 border-ink bg-white px-3 py-2 text-base font-bold'
-              }
-            >
+            <ToggleButton on={filter.overlap === 'only'} onClick={() => setFilter({ ...filter, overlap: filter.overlap === 'only' ? 'all' : 'only' })}>
               {filter.overlap === 'only' ? ja.map.overlapOnlyOn : ja.map.overlapOnly}
-            </button>
-            {filter.overlap === 'only' && <p className="m-0 mt-1 text-sm text-ink-soft">{ja.map.overlapOnlyHelp}</p>}
-            <div className="mt-3 text-base">
+            </ToggleButton>
+            {filter.overlap === 'only' && <p className="m-0 text-sm text-ink-soft">{ja.map.overlapOnlyHelp}</p>}
+            <div className="pt-1 text-base">
               <HazardOverlayPicker value={overlay} onChange={setOverlay} />
             </div>
           </div>
-          <div id="filter-panel" hidden={!panelOpen} className="space-y-4 px-4 pb-4 text-base">
+          <div className="space-y-4 px-4 pb-4 text-base">
             <FilterControls filter={filter} onChange={setFilter} />
             <Legend />
             <p className="m-0">
@@ -112,14 +110,121 @@ export function MapPage() {
           {isClusterCountUnavailable(filter) && (
             <p role="status" className="m-0 mx-4 mb-2 rounded bg-paper p-2 text-sm">{ja.map.clusterCountUnavailable}</p>
           )}
-          {/* 凡例は常時表示（SPEC §3.6）。パネルを閉じていても1行で出す */}
-          {!panelOpen && (
-            <div className="flex flex-wrap gap-x-3 gap-y-1 px-4 pb-2 text-sm">
-              {DISPLAY_STATES.map((s) => <StateLabel key={s} state={s} />)}
-            </div>
-          )}
         </div>
+
+        {/* 凡例は常時表示（SPEC §3.6）。パネルを閉じているときは地図の左下に小さく出す */}
+        {!panelOpen && (
+          <div className="pointer-events-none absolute bottom-9 left-2 z-10 flex max-w-[calc(100%-1rem)] flex-wrap gap-x-2 gap-y-0.5 rounded bg-surface/90 px-2 py-1 text-xs shadow md:bottom-10 md:text-sm">
+            {DISPLAY_STATES.map((s) => <StateLabel key={s} state={s} />)}
+            <span className="flex items-center gap-1"><AttentionMark />{ja.state.attentionShort}</span>
+          </div>
+        )}
       </div>
+    </div>
+  )
+}
+
+function ToggleButton({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onClick}
+      className={
+        on
+          ? 'w-full rounded border-2 border-ink bg-ink px-3 py-2 text-base font-bold text-white'
+          : 'w-full rounded border-2 border-ink bg-white px-3 py-2 text-base font-bold'
+      }
+    >
+      {children}
+    </button>
+  )
+}
+
+/** 住所・地名で探す。照合は端末の中だけで行う（D-33） */
+function SearchBox({ onGo, panelOpen, onTogglePanel }: { onGo: (lat: number, lng: number, zoom: number) => void; panelOpen: boolean; onTogglePanel: () => void }) {
+  const t = ja.search
+  const index = useMuniIndex()
+  const [q, setQ] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [outcome, setOutcome] = useState<SearchOutcome | null>(null)
+  const [error, setError] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const go = (h: GeocodeHit) => onGo(h.lat, h.lng, h.level === 'town' ? 14 : 12)
+
+  async function run(pref?: PrefIndexEntry) {
+    if (!q.trim() || !index.data) return
+    setBusy(true); setError(false)
+    try {
+      const r = await searchAddress(q, index.data, pref)
+      setOutcome(r)
+      if (r.status === 'found' || r.status === 'muni_only') {
+        go(r.hit)
+        inputRef.current?.blur()
+      }
+    } catch {
+      setError(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div>
+      <form role="search" aria-label={t.label} onSubmit={(e) => { e.preventDefault(); void run() }} className="flex gap-1 rounded border border-line bg-surface p-1 shadow-lg">
+        <input
+          ref={inputRef}
+          type="search"
+          value={q}
+          onChange={(e) => { setQ(e.target.value); setOutcome(null) }}
+          placeholder={t.placeholder}
+          aria-label={t.label}
+          enterKeyHint="search"
+          autoComplete="off"
+          className="min-h-11 min-w-0 flex-1 rounded border-0 bg-white px-2 text-base"
+        />
+        <button type="submit" disabled={busy || !index.data} className="min-h-11 shrink-0 rounded bg-ink px-3 text-base font-bold text-white">
+          {busy ? '…' : t.submit}
+        </button>
+        <button
+          type="button"
+          onClick={onTogglePanel}
+          aria-expanded={panelOpen}
+          aria-controls="filter-panel"
+          className={panelOpen ? 'min-h-11 shrink-0 rounded border-2 border-ink bg-ink px-2 text-sm font-bold text-white' : 'min-h-11 shrink-0 rounded border-2 border-ink bg-white px-2 text-sm font-bold'}
+        >
+          {t.filters}
+        </button>
+      </form>
+      {(outcome && outcome.status !== 'found') || error ? (
+        <div role="status" className="mt-1 rounded border border-line bg-surface p-2 text-sm shadow-lg">
+          {error && <p className="m-0">{ja.loadError}</p>}
+          {outcome?.status === 'not_found' && <p className="m-0">{t.notFound}</p>}
+          {outcome?.status === 'muni_only' && <p className="m-0">{t.muniOnly(outcome.hit.muni.name)}</p>}
+          {outcome?.status === 'choose_pref' && (
+            <>
+              <p className="m-0 font-bold">{t.choosePref}</p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {outcome.prefs.map((p) => (
+                  <button key={p.code} type="button" onClick={() => void run(p)} className="min-h-9 rounded border border-ink bg-white px-3">{p.name}</button>
+                ))}
+              </div>
+            </>
+          )}
+          {outcome?.status === 'choose_town' && (
+            <>
+              <p className="m-0 font-bold">{t.chooseTown}</p>
+              <div className="mt-1 flex max-h-40 flex-wrap gap-1 overflow-y-auto">
+                {outcome.candidates.map((c) => (
+                  <button key={c.town} type="button" onClick={() => { go(c); setOutcome(null) }} className="min-h-9 rounded border border-ink bg-white px-3">{c.town}</button>
+                ))}
+              </div>
+            </>
+          )}
+          <button type="button" onClick={() => { setOutcome(null); setError(false) }} className="mt-1 min-h-9 text-ink-soft underline">{t.close}</button>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -193,7 +298,7 @@ function SelectedCard({ feature, onClose }: { feature: MapFeature; onClose: () =
   return (
     <section
       aria-live="polite"
-      className="absolute left-2 right-16 top-2 z-20 rounded border border-line bg-surface p-3 shadow-lg md:left-auto md:right-16 md:top-3 md:w-96"
+      className="mt-1 rounded border border-line bg-surface p-3 shadow-lg"
     >
       <div className="flex items-start gap-2">
         <h2 className="m-0 flex-1 text-lg font-bold leading-snug">{feature.name}</h2>
