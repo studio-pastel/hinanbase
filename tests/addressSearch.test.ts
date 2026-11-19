@@ -25,3 +25,13 @@ describe('resolvePrefs', () => {
     expect(resolvePrefs('どこか', index)).toEqual([])
   })
 })
+
+describe('suggestMunis', () => {
+  it('市区町村名の一部から候補を出す（前方一致が先）', async () => {
+    const { suggestMunis } = await import('../src/lib/addressSearch.ts')
+    expect(suggestMunis('府中', index).map((s) => `${s.sub}${s.label}`)).toEqual(['東京都府中市', '広島県府中市', '広島県安芸郡府中町'])
+    expect(suggestMunis('江東', index).map((s) => s.label)).toEqual(['江東区'])
+    expect(suggestMunis('浜', index).map((s) => s.label)).toEqual(['横浜市'])
+    expect(suggestMunis('東京都', index).map((s) => s.label)).toEqual(['江東区', '府中市'])
+  })
+})
