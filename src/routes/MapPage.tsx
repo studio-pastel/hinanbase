@@ -51,7 +51,7 @@ export function MapPage() {
       </section>
 
       {/* スマホでは地図を画面の高さいっぱいに取る（下にスクロールすると出典などが続く） */}
-      <div className="relative h-[calc(100dvh-11.75rem)] min-h-[380px] md:h-auto md:min-h-0 md:flex-1">
+      <div className="relative h-[calc(100dvh-15.5rem)] min-h-[360px] md:h-auto md:min-h-0 md:flex-1">
         <MapView
           mode="national"
           tilesUrl={tilesUrl}

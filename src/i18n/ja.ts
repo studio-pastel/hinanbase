@@ -8,7 +8,7 @@ export const ja = {
   banner:
     'このサイトは平常時の課題の可視化を目的としています。災害時は必ずお住まいの自治体の公式情報に従ってください。',
   skipToMain: '本文へ移動',
-  nav: { map: '地図', list: 'リスト', near: '住所で探す', nearShort: '住所', label: 'ページ切り替え' },
+  nav: { map: '地図', list: 'リスト', near: '住所で探す', nearShort: '住所', label: 'ページ切り替え', bottomLabel: 'メニュー', listShort: '一覧', nearBottom: '近くを探す' },
   loading: '読み込み中…',
   loadError: 'データを読み込めませんでした。時間をおいて再度お試しください。',
   notFound: 'ページが見つかりません。',
@@ -199,7 +199,7 @@ export const ja = {
 
   list: {
     title: '一覧から探す',
-    intro: '都道府県、市区町村の順にたどって施設を探せます。地図を使わない代替の経路です。',
+    intro: '地方、都道府県、市区町村の順にたどって施設を探せます。',
     prefs: '都道府県',
     munis: '市区町村',
     facilities: '施設',

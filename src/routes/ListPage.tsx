@@ -5,6 +5,18 @@ import { StateLabel } from '../components/StateMark.tsx'
 import { fmt, ja } from '../i18n/ja.ts'
 import { useEvacueeEstimates, useMuni, useMuniIndex } from '../lib/data.ts'
 
+/** 地方区分（都道府県コード） */
+const REGIONS: { name: string; codes: number[] }[] = [
+  { name: '北海道', codes: [1] },
+  { name: '東北', codes: [2, 3, 4, 5, 6, 7] },
+  { name: '関東', codes: [8, 9, 10, 11, 12, 13, 14] },
+  { name: '中部', codes: [15, 16, 17, 18, 19, 20, 21, 22, 23] },
+  { name: '近畿', codes: [24, 25, 26, 27, 28, 29, 30] },
+  { name: '中国', codes: [31, 32, 33, 34, 35] },
+  { name: '四国', codes: [36, 37, 38, 39] },
+  { name: '九州・沖縄', codes: [40, 41, 42, 43, 44, 45, 46, 47] },
+]
+
 function Shell({ title, crumbs, children }: { title: string; crumbs: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-5">
@@ -22,14 +34,32 @@ export function ListPrefsPage() {
       <p className="text-base text-ink-soft">{ja.list.intro}</p>
       <Status loading={index.isLoading} error={index.isError} />
       {index.data && (
-        <ul className="m-0 grid list-none grid-cols-1 gap-x-6 p-0 min-[420px]:grid-cols-2 sm:grid-cols-3">
-          {index.data.prefs.map((p) => (
-            <li key={p.code} className="flex min-h-12 items-center justify-between gap-2 border-b border-line">
-              <Link to="/list/$prefCode" params={{ prefCode: p.code }} className="flex-1 py-2.5">{p.name}</Link>{' '}
-              <span className="text-sm text-ink-soft tabular-nums">{fmt.format(p.count)}{ja.unitCount}</span>
-            </li>
-          ))}
-        </ul>
+        // まず地方で分け、開いた地方の都道府県を出す（スマホで 47 件を一度に並べない）
+        <div className="mt-2 space-y-2">
+          {REGIONS.map((r) => {
+            const prefs = index.data.prefs.filter((p) => r.codes.includes(Number(p.code)))
+            const total = prefs.reduce((n, p) => n + p.count, 0)
+            return (
+              <details key={r.name} className="group rounded border border-line bg-surface">
+                <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 px-4 text-lg font-bold">
+                  <span>{r.name}</span>
+                  <span className="flex items-center gap-3 text-sm font-normal text-ink-soft tabular-nums">
+                    {fmt.format(total)}{ja.unitCount}
+                    <span aria-hidden="true" className="text-lg group-open:rotate-90">›</span>
+                  </span>
+                </summary>
+                <ul className="m-0 grid list-none grid-cols-1 gap-x-6 border-t border-line px-4 pb-1 min-[420px]:grid-cols-2 sm:grid-cols-3">
+                  {prefs.map((p) => (
+                    <li key={p.code} className="flex min-h-12 items-center justify-between gap-2 border-b border-line last:border-b-0">
+                      <Link to="/list/$prefCode" params={{ prefCode: p.code }} className="flex-1 py-2.5">{p.name}</Link>{' '}
+                      <span className="text-sm text-ink-soft tabular-nums">{fmt.format(p.count)}{ja.unitCount}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )
+          })}
+        </div>
       )}
     </Shell>
   )
