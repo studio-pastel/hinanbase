@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { DISPLAY_STATES, HAZARD_KEYS, KIND_EMERGENCY, KIND_SHELTER, type DisplayState, type HazardKey } from '../../shared/types.ts'
 import { MapView } from '../components/MapView.tsx'
-import { StateLabel, StateMark } from '../components/StateMark.tsx'
+import { AttentionMark, StateLabel, StateMark } from '../components/StateMark.tsx'
 import { fmt, ja, pct } from '../i18n/ja.ts'
 import { DATA_BASE_URL, useNational } from '../lib/data.ts'
 import { isClusterCountUnavailable, type MapFeature, type MapFilter } from '../lib/map/index.ts'
@@ -175,6 +175,7 @@ function Legend() {
           </li>
         ))}
         <li className="flex gap-2"><StateMark state="unknown" restrictedOnly /><span>{ja.state.restrictedLegend}</span></li>
+        <li className="flex gap-2"><AttentionMark /><span>{ja.state.attentionLegend}</span></li>
         <li>{ja.state.clusterLegend}</li>
       </ul>
       <p className="m-0 mt-2 text-sm text-ink-soft">{ja.state.phase1Note}</p>

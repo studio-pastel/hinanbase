@@ -91,8 +91,10 @@ export class MapLibreAdapter implements MapAdapter {
 
     map.on('load', () => {
       for (const state of DISPLAY_STATES) {
-        map.addImage(`m-${state}-0`, markerIcon(state, false), imageOptions)
-        map.addImage(`m-${state}-1`, markerIcon(state, true), imageOptions)
+        for (const rs of [0, 1]) {
+          map.addImage(`m-${state}-${rs}`, markerIcon(state, rs === 1), imageOptions)
+          map.addImage(`m-${state}-${rs}-a`, markerIcon(state, rs === 1, true), imageOptions)
+        }
       }
       map.addImage('selected', selectedIcon(), imageOptions)
       map.addImage('pin', pinIcon(), imageOptions)
@@ -119,7 +121,8 @@ export class MapLibreAdapter implements MapAdapter {
       map.addLayer({
         id: LAYER_POINTS, type: 'symbol', source: SOURCE, 'source-layer': 'shelters',
         layout: {
-          'icon-image': ['concat', 'm-', ['get', 'state'], '-', ['to-string', ['get', 'rs']]],
+          // 軸A が「要確認」（hm=1）の施設は、表示状態の色とは別に三角の印を重ねる
+          'icon-image': ['concat', 'm-', ['get', 'state'], '-', ['to-string', ['get', 'rs']], ['case', ['>', ['coalesce', ['get', 'hm'], 0], 0], '-a', '']],
           'icon-size': ['interpolate', ['linear'], ['zoom'], 6, 0.6, 12, 0.8, 15, 1.1],
           'icon-allow-overlap': true,
           'icon-ignore-placement': true,

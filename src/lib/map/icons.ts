@@ -40,13 +40,20 @@ function toImage(c: HTMLCanvasElement, ctx: CanvasRenderingContext2D): IconImage
   return { width: c.width, height: c.height, data: d.data }
 }
 
-/** 施設1件の印。restrictedOnly は白抜き（受入対象者が限定された避難所） */
-export function markerIcon(state: DisplayState, restrictedOnly: boolean): IconImage {
-  const size = 30
+/**
+ * 施設1件の印。restrictedOnly は白抜き（受入対象者が限定された避難所）。
+ * attention は、指定された災害の想定区域と地点が重なる（軸A が「要確認」）。表示状態の色とは別に、右上に三角の印を重ねる
+ */
+export function markerIcon(state: DisplayState, restrictedOnly: boolean, attention = false): IconImage {
+  const r = 13
+  const pad = 2
+  const size = attention ? 38 : 30
+  const cx = pad + r
+  const cy = attention ? size - pad - r : size / 2
   const { c, ctx } = canvas(size, size)
   const color = STATE_COLORS[state]
   ctx.beginPath()
-  ctx.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2)
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
   ctx.fillStyle = restrictedOnly ? '#ffffff' : color
   ctx.fill()
   ctx.lineWidth = restrictedOnly ? 2.5 : 1.5
@@ -56,8 +63,30 @@ export function markerIcon(state: DisplayState, restrictedOnly: boolean): IconIm
   ctx.font = `700 16px ${FONT}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText(STATE_SYMBOLS[state], size / 2, size / 2 + 0.5)
+  ctx.fillText(STATE_SYMBOLS[state], cx, cy + 0.5)
+  if (attention) drawAttention(ctx, size - 9.5, 9.5)
   return toImage(c, ctx)
+}
+
+/** 「想定区域と重なる（要確認）」の印：黒い三角に白い「!」。色に頼らず形で区別する */
+export function drawAttention(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  const h = 16
+  const w = 18
+  ctx.beginPath()
+  ctx.moveTo(x, y - h / 2)
+  ctx.lineTo(x + w / 2, y + h / 2)
+  ctx.lineTo(x - w / 2, y + h / 2)
+  ctx.closePath()
+  ctx.fillStyle = '#1a1a1a'
+  ctx.fill()
+  ctx.lineWidth = 1.5
+  ctx.strokeStyle = '#ffffff'
+  ctx.stroke()
+  ctx.fillStyle = '#ffffff'
+  ctx.font = `800 11px ${FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('!', x, y + 2.5)
 }
 
 /** 選択中の施設を囲む輪 */
