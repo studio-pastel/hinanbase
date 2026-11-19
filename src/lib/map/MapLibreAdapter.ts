@@ -97,10 +97,12 @@ export class MapLibreAdapter implements MapAdapter {
     map.touchZoomRotate.disableRotation()
     // 出典は折りたたまずに常に表示する（CLAUDE.md 絶対ルール 8）
     map.addControl(new AttributionControl({ compact: false }), 'bottom-right')
-    map.addControl(new NavigationControl({ showCompass: false }), 'top-right')
+    // 操作ボタンは右下にまとめる。タッチ端末では拡大・縮小ボタンを出さない（指で拡大できるため）
+    const touch = window.matchMedia('(pointer: coarse)').matches
     if (options.mode === 'national') {
-      map.addControl(new GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false }), 'top-right')
+      map.addControl(new GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false }), 'bottom-right')
     }
+    if (!touch) map.addControl(new NavigationControl({ showCompass: false }), 'bottom-right')
 
     const imageOptions = { pixelRatio: ICON_PIXEL_RATIO }
     // まとめ表示の印（件数入り）は、必要になった時点でキャンバスに描いて登録する
@@ -360,7 +362,13 @@ function toFeature(f: MapGeoJSONFeature): MapFeature {
     hz: Number(p.hz),
     state: p.state as DisplayState,
     restrictedOnly: Number(p.rs) === 1,
+    attention: Number(p.hm) === 1,
+    metrics: {
+      flood: num(p.fd), tsunami: num(p.td), storm_surge: num(p.sd), landslide: num(p.ls), road: num(p.rd),
+    },
     lng,
     lat,
   }
 }
+
+const num = (v: unknown): number | undefined => (v === undefined || v === null || v === '' ? undefined : Number(v))

@@ -116,12 +116,16 @@ export const ja = {
     attributionData: '国土地理院「指定緊急避難場所・指定避難所データ」を加工',
     attributionHazard: 'ハザードマップポータルサイト',
     selectedClose: '閉じる',
+    panelTitle: '表示の設定',
+    unknownShort: '未確認',
+    aboutColors: 'この色について',
+    attentionSheet: '指定された災害の想定区域と地点が重なっています（要確認。指定の誤りを意味するものではありません）',
     openDetail: '施設の詳細を見る',
   },
 
   search: {
     label: '住所・地名で探す',
-    placeholder: '住所・地名（例：世田谷区太子堂）',
+    placeholder: '市区町村・町名で探す',
     submit: '探す',
     filters: '絞り込み',
     choosePref: 'どの都道府県ですか？',

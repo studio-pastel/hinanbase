@@ -22,6 +22,10 @@ export interface MapFeature {
   state: DisplayState
   /** 避難所の指定がすべて受入対象者限定 */
   restrictedOnly: boolean
+  /** 想定区域と重なる（軸A が要確認） */
+  attention: boolean
+  /** 地点の指標（属性がないものは undefined = 未確認） */
+  metrics: { flood?: number; tsunami?: number; storm_surge?: number; landslide?: number; road?: number }
   lng: number
   lat: number
 }
