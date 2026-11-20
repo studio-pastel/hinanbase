@@ -9,3 +9,4 @@ data/build/
 .wrangler/
 sample/
 data/cache/
+*.tsbuildinfo
