@@ -1,6 +1,6 @@
 // 確定設備値を Supabase から読み、市区町村 JSON に載せて 4 軸を算出し直す（SPEC §5.6 の compute-scores）。
 // 元の CSV は使わない。手元に市区町村 JSON がなければ、公開済みのものを配信元から取得する（日次ビルド用）。
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import amenityDefs from '../config/amenity-defs.json' with { type: 'json' }
 import { axisKey, compactBreakdown, computeScores, type ScoringDef } from '../shared/score.ts'
@@ -10,7 +10,7 @@ import { BUILD_DIR, FACILITIES_NDJSON, INTERMEDIATE_DIR } from './lib/paths.ts'
 import { tileProps } from './lib/tileProps.ts'
 
 export const DERIVED_REPORT = join(INTERMEDIATE_DIR, 'derived-report.json')
-const defs = amenityDefs.amenities as ScoringDef[]
+const defs = amenityDefs.amenities as unknown as ScoringDef[]
 const muniDir = join(BUILD_DIR, 'facilities', 'by-muni')
 mkdirSync(muniDir, { recursive: true })
 mkdirSync(INTERMEDIATE_DIR, { recursive: true })
@@ -66,6 +66,30 @@ if (process.env.RESCORE_FIXTURE) {
   console.log(`確定設備値: ${rows} 件（${amenities.size} 施設）`)
 }
 
+// 2b) 公的資料から取り込んだ値（data/public/amenities.json、DATA_NOTES 16）。市民投稿の確定値があれば、そちらを優先する
+const PUBLIC_AMENITIES = join(import.meta.dirname, '..', 'data', 'public', 'amenities.json')
+let publicCount = 0
+if (existsSync(PUBLIC_AMENITIES)) {
+  const pub = JSON.parse(readFileSync(PUBLIC_AMENITIES, 'utf8')) as {
+    sources: Record<string, { title: string; publisher: string; url: string; as_of: string }>
+    values: Record<string, Record<string, { value: string | boolean; source: string; how: string }>>
+  }
+  for (const [id, items] of Object.entries(pub.values)) {
+    const a = amenities.get(id) ?? {}
+    for (const [key, e] of Object.entries(items)) {
+      if (a[key]) continue
+      const src = pub.sources[e.source]!
+      a[key] = {
+        value: e.value, confidence: 'official', observed_at: src.as_of, evidence_count: 0,
+        source: { title: src.title, publisher: src.publisher, url: src.url, as_of: src.as_of, how: e.how },
+      }
+      publicCount++
+    }
+    amenities.set(id, a)
+  }
+  console.log(`公的資料から取り込んだ設備値: ${publicCount} 件`)
+}
+
 // 3) 設備値を載せて算出し直す。内容が変わった市区町村だけ書き出す
 const now = new Date().toISOString()
 const ndjson: string[] = []
@@ -76,7 +100,8 @@ const stats = {
   hazards: Object.fromEntries(HAZARD_KEYS.map((k) => [k, 0])) as Record<string, number>,
   display_state: Object.fromEntries(DISPLAY_STATES.map((s) => [s, 0])) as Record<string, number>,
   facilities_with_any_amenity: 0,
-  axis_evaluated: { habitability: 0, logistics: 0 },
+  axis_evaluated: { logistics: 0 },
+  impact: Object.fromEntries(['life', 'health', 'dignity', 'access'].map((k) => [k, { short: 0, limited: 0, ok: 0, unknown: 0 }])) as Record<string, Record<string, number>>,
   hazard_status: { attention: 0, no_overlap_found: 0, not_evaluated: 0 } as Record<string, number>,
 }
 const munis: { key: string; prefCode: string; prefName: string; muniName: string; count: number; shelters: number; deep3: number; landslide: number }[] = []
@@ -121,7 +146,7 @@ for (const file of readdirSync(muniDir).sort()) {
     HAZARD_KEYS.forEach((k, i) => { if (hz & (1 << i)) stats.hazards[k]!++ })
     stats.display_state[f.scores.display_state]!++
     if (Object.keys(f.amenities).length > 0) stats.facilities_with_any_amenity++
-    if (f.scores.habitability !== null) stats.axis_evaluated.habitability++
+    for (const [k, v] of Object.entries(f.scores.impact)) stats.impact[k]![v]!++
     if (f.scores.logistics !== null) stats.axis_evaluated.logistics++
     stats.hazard_status[f.scores.hazard_check.status]!++
     if (kind & 2) {
@@ -131,7 +156,7 @@ for (const file of readdirSync(muniDir).sort()) {
       if (d && (d.landslide ?? 0) >= 1) ms.landslide++
     }
     ndjson.push(JSON.stringify({
-      type: 'Feature', geometry: { type: 'Point', coordinates: [f.lng, f.lat] }, properties: tileProps(f, muni.muni_key),
+      type: 'Feature', geometry: { type: 'Point', coordinates: [f.lng, f.lat] }, properties: tileProps({ ...f, scores: fullScores[i]! }, muni.muni_key),
     }))
   }
   if (JSON.stringify(muni.breakdown_texts ?? []) !== JSON.stringify(texts)) changed = true
@@ -149,7 +174,8 @@ writeFileSync(FACILITIES_NDJSON, ndjson.join('\n') + '\n')
 writeFileSync(DERIVED_REPORT, JSON.stringify({ generated_at: now, ...stats, muni_count: munis.length, munis }))
 
 const orphan = [...amenities.keys()].filter((id) => !used.has(id))
-console.log(`施設 ${stats.facility_count} 件 / 設備情報あり ${stats.facilities_with_any_amenity} 件 / 軸C 評価済み ${stats.axis_evaluated.habitability} 件`)
+console.log(`施設 ${stats.facility_count} 件 / 設備情報あり ${stats.facilities_with_any_amenity} 件`)
+console.log('観点ごとの状態:', JSON.stringify(stats.impact))
 console.log('表示状態:', stats.display_state)
 console.log('軸A:', stats.hazard_status, '/ 軸D 評価済み:', stats.axis_evaluated.logistics)
 console.log(`書き換えた市区町村: ${changedMunis}`)

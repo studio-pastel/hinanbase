@@ -366,6 +366,8 @@ function toFeature(f: MapGeoJSONFeature): MapFeature {
     metrics: {
       flood: num(p.fd), tsunami: num(p.td), storm_surge: num(p.sd), landslide: num(p.ls), road: num(p.rd),
     },
+    impact: { life: num(p.il) ?? 0, health: num(p.ih) ?? 0, dignity: num(p.idg) ?? 0, access: num(p.ia) ?? 0 },
+    shortKeys: typeof p.sk === 'string' && p.sk ? p.sk.split(',') : [],
     lng,
     lat,
   }

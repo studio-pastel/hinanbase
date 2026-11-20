@@ -9,12 +9,12 @@ import { MapView } from '../components/MapView.tsx'
 import type { HazardOverlay } from '../lib/map/index.ts'
 import { StateLabel } from '../components/StateMark.tsx'
 import { ja } from '../i18n/ja.ts'
-import { amenityCategories, formatValue } from '../lib/amenities.ts'
+import { amenityByKey, amenityCategories, formatValue, impacts, seasonLabel } from '../lib/amenities.ts'
 import { useFacilityHistory, useLiveAmenities } from '../lib/community.ts'
 import { supabase } from '../lib/supabase.ts'
 import { useMeta, useMuni } from '../lib/data.ts'
 
-const AXES = ['hazard', 'capacity', 'habitability', 'logistics'] as const
+const AXES = ['hazard', 'capacity', 'logistics'] as const
 
 export function FacilityPage() {
   const { muniKey, facilityId } = useParams({ from: '/f/$muniKey/$facilityId' })
@@ -57,6 +57,8 @@ export function FacilityPage() {
           <a href={routeUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded border border-ink px-4 font-bold no-underline">{ja.facility.openRoute}</a>
         </p>
       </header>
+
+      <ImpactSection facility={facility} texts={muni.data?.breakdown_texts} />
 
       <MapView
         mode="single"
@@ -409,6 +411,82 @@ function Amenities({ facility, muniKey }: { facility: Facility; muniKey: string 
             </dl>
           </div>
         ))}
+      </div>
+    </section>
+  )
+}
+
+type ImpactItem = { status: 'short' | 'limited' | 'ok' | 'neutral' | 'unknown'; value: AmenityValue['value'] | null; season?: string; source?: { title: string; publisher: string; url: string; as_of: string; how: string } }
+type Perspectives = Record<string, { status: 'short' | 'limited' | 'ok' | 'unknown'; items: Record<string, ImpactItem> }>
+
+const STATUS_STYLE: Record<string, string> = {
+  short: 'border-2 border-state-critical text-state-critical font-bold',
+  limited: 'border border-state-poor text-state-poor font-bold',
+  ok: 'border border-state-good text-state-good font-bold',
+  unknown: 'border border-dashed border-line text-ink-soft',
+  neutral: 'border border-line text-ink-soft',
+}
+
+/** 設備の評価（DATA_NOTES 16.3）。4 つの観点ごとに、不足・一部・充足・未確認と、その根拠を示す。項目名はマスタから引く */
+function ImpactSection({ facility, texts }: { facility: Facility; texts: unknown[] | undefined }) {
+  const t = ja.facility
+  const breakdown = expandBreakdown(facility.scores.breakdown, texts, facility.road)
+  const persp = (breakdown.impact as { perspectives?: Perspectives } | undefined)?.perspectives
+  if (!persp) return null
+  return (
+    <section aria-labelledby="impact-h">
+      <h2 id="impact-h" className="m-0 text-xl font-bold">{t.impactTitle}</h2>
+      <p className="m-0 mb-2 text-sm text-ink-soft">{t.impactNote}</p>
+      <div className="space-y-3">
+        {impacts.map((imp) => {
+          const p = persp[imp.key]
+          if (!p) return null
+          return (
+            <div key={imp.key} className={`rounded border bg-surface p-3 ${p.status === 'short' ? 'border-state-critical' : 'border-line'}`}>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 className="m-0 text-lg font-bold">{imp.label_ja}</h3>
+                <span className={`rounded px-2 py-0.5 text-sm ${STATUS_STYLE[p.status]}`}>{t.impactStatus[p.status]}</span>
+              </div>
+              <p className="m-0 text-sm text-ink-soft">{imp.help_ja}</p>
+              <ul className="m-0 mt-2 list-none space-y-1.5 p-0">
+                {Object.entries(p.items).filter(([, it]) => it.status !== 'unknown').map(([key, it]) => {
+                  const def = amenityByKey.get(key)
+                  if (!def) return null
+                  const season = seasonLabel(it.season)
+                  return (
+                    <li key={key} className="border-t border-line pt-1.5 first:border-t-0 first:pt-0">
+                      <div className="flex items-start justify-between gap-3 text-base">
+                        <span>
+                          {def.label_ja}
+                          {season && <span className="ml-2 rounded bg-paper px-1.5 text-xs text-ink-soft">{t.seasonTag(season)}</span>}
+                        </span>
+                        <span className={`shrink-0 rounded px-1.5 text-sm ${STATUS_STYLE[it.status]}`}>
+                          {it.value === null ? t.itemStatus[it.status] : `${formatValue(def, it.value)}${it.status === 'short' ? `（${t.itemStatus.short}）` : ''}`}
+                        </span>
+                      </div>
+                      {it.source && (
+                        <p className="m-0 mt-0.5 text-sm text-ink-soft">
+                          {t.publicSource}：<a href={it.source.url} target="_blank" rel="noreferrer">{it.source.publisher}「{it.source.title}」</a>（{it.source.as_of} 時点）。{it.source.how}
+                        </p>
+                      )}
+                      {it.status === 'short' && def.impact_basis_ja && <p className="m-0 mt-0.5 text-sm">{t.whyLabel}：{def.impact_basis_ja}</p>}
+                    </li>
+                  )
+                })}
+              </ul>
+              {/* 未確認の設備は 1 行にまとめる（並べると長くなり、確定した不足が埋もれるため） */}
+              {Object.values(p.items).some((it) => it.status === 'unknown') && (
+                <p className="m-0 mt-2 text-sm text-ink-soft">
+                  {t.itemStatus.unknown}：{Object.entries(p.items).filter(([, it]) => it.status === 'unknown').map(([k, it]) => {
+                    const d = amenityByKey.get(k)
+                    const season = seasonLabel(it.season)
+                    return d ? `${d.label_ja}${season ? `（${season}）` : ''}` : k
+                  }).join('、')}
+                </p>
+              )}
+            </div>
+          )
+        })}
       </div>
     </section>
   )

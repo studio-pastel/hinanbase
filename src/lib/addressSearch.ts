@@ -5,7 +5,8 @@ import type { MuniIndexFile, PrefIndexEntry } from '../../shared/types.ts'
 import { fetchGeocode } from './data.ts'
 
 const stripPrefSuffix = (name: string) => (name === '北海道' ? name : name.replace(/[都府県]$/, ''))
-const stripGun = (name: string) => name.replace(/^.+?郡/, '')
+/** 郡名を外す（「○○郡△△町」→「△△町」）。「大和郡山市」「蒲郡市」の「郡」は外さない */
+const stripGun = (name: string) => (/[町村]$/.test(name) ? name.replace(/^.+?郡(?=.+[町村]$)/, '') : name)
 
 /**
  * 住所の先頭から都道府県の候補を決める。

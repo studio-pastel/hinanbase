@@ -6,7 +6,7 @@ const facility = (id: string, name: string, lat: number, lng: number, sourceId =
   id, name, address: '', lat, lng,
   designations: { emergency_site: [], shelter: [{ source_id: sourceId, name, restricted: false, target: null, other: null, note: null, lat, lng }] },
   merge_rules: [], amenities: {},
-  scores: { hazard: null, capacity: null, habitability: null, logistics: null, coverage_ratio: 0, display_state: 'unknown', hazard_check: { status: 'not_evaluated', overlap: [], checked: [], unchecked: [] }, breakdown: {} },
+  scores: { hazard: null, capacity: null, logistics: null, impact: { life: 'unknown', health: 'unknown', dignity: 'unknown', access: 'unknown' }, coverage_ratio: 0, display_state: 'unknown', hazard_check: { status: 'not_evaluated', overlap: [], checked: [], unchecked: [] }, breakdown: {} },
 })
 
 describe('自治体の収容人数 CSV の読み取り', () => {

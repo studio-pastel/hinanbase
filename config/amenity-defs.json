@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "categories": [
     {
       "key": "climate",
@@ -32,6 +32,10 @@
     {
       "key": "capacity",
       "label_ja": "収容"
+    },
+    {
+      "key": "privacy",
+      "label_ja": "プライバシー・安全"
     }
   ],
   "enum_labels_ja": {
@@ -45,7 +49,8 @@
     "sufficient": "十分",
     "no": "不可",
     "outdoor_only": "屋外のみ",
-    "same_room": "同室可"
+    "same_room": "同室可",
+    "present": "あり（範囲は未確認）"
   },
   "amenities": [
     {
@@ -57,20 +62,24 @@
         "none",
         "spot_only",
         "partial",
-        "full"
+        "full",
+        "present"
       ],
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 4,
-      "habitability": {
+      "impact": "life",
+      "season": "summer",
+      "status_rule": {
         "kind": "enum",
-        "scores": {
-          "none": 0,
-          "spot_only": 0.33,
-          "partial": 0.67,
-          "full": 1
-        }
-      }
+        "short": [
+          "none"
+        ],
+        "ok": [
+          "full",
+          "present"
+        ]
+      },
+      "impact_basis_ja": "取組指針（暑さ寒さ対策、冷暖房の整備）。夏の災害の死亡事例の数字は未確認"
     },
     {
       "key": "heating_main_hall",
@@ -81,20 +90,24 @@
         "none",
         "spot_only",
         "partial",
-        "full"
+        "full",
+        "present"
       ],
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 5,
-      "habitability": {
+      "impact": "life",
+      "season": "winter",
+      "status_rule": {
         "kind": "enum",
-        "scores": {
-          "none": 0,
-          "spot_only": 0.33,
-          "partial": 0.67,
-          "full": 1
-        }
-      }
+        "short": [
+          "none"
+        ],
+        "ok": [
+          "full",
+          "present"
+        ]
+      },
+      "impact_basis_ja": "能登の災害関連死事例集（空調設備不足等による低温下での避難所生活 12 件、停電で暖房が使えない例）、取組指針"
     },
     {
       "key": "insulation",
@@ -102,12 +115,19 @@
       "category": "climate",
       "value_type": "boolean",
       "enum_options": null,
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 17,
-      "habitability": {
-        "kind": "boolean"
-      }
+      "impact": "health",
+      "status_rule": {
+        "kind": "enum",
+        "short": [
+          false
+        ],
+        "ok": [
+          true
+        ]
+      },
+      "impact_basis_ja": "冷暖房の効きを左右する（取組指針・文科省の空調整備の要件）"
     },
     {
       "key": "toilet_total",
@@ -115,11 +135,14 @@
       "category": "sanitation",
       "value_type": "integer",
       "enum_options": null,
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 15,
-      "habitability": null,
-      "habitability_excluded_reason": "避難者数との比で見る項目（軸B）"
+      "impact": "life",
+      "status_rule": {
+        "kind": "per_capacity",
+        "max_persons_per_unit": 50
+      },
+      "impact_basis_ja": "トイレを我慢すると水分を控え、脱水やエコノミークラス症候群につながる（トイレガイドライン）。発災当初は 50 人に 1 基（スフィア基準）。想定収容人数とあわせて判定する"
     },
     {
       "key": "toilet_western_ratio",
@@ -127,13 +150,15 @@
       "category": "sanitation",
       "value_type": "integer",
       "enum_options": null,
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 16,
-      "habitability": {
-        "kind": "ratio",
-        "max": 100
-      }
+      "impact": "access",
+      "status_rule": {
+        "kind": "min",
+        "short_below": 1,
+        "ok_from": 1
+      },
+      "impact_basis_ja": "高齢者・障害者には洋式便器を確保する（トイレガイドライン）。洋式が 1 つもなければ不足"
     },
     {
       "key": "toilet_multipurpose",
@@ -141,12 +166,19 @@
       "category": "sanitation",
       "value_type": "boolean",
       "enum_options": null,
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 3,
-      "habitability": {
-        "kind": "boolean"
-      }
+      "impact": "access",
+      "status_rule": {
+        "kind": "enum",
+        "short": [
+          false
+        ],
+        "ok": [
+          true
+        ]
+      },
+      "impact_basis_ja": "トイレガイドライン（バリアフリートイレは避難者のニーズに合わせて確保）"
     },
     {
       "key": "shower",
@@ -158,17 +190,20 @@
         "shower",
         "bath"
       ],
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 7,
-      "habitability": {
+      "impact": "health",
+      "status_rule": {
         "kind": "enum",
-        "scores": {
-          "none": 0,
-          "shower": 0.5,
-          "bath": 1
-        }
-      }
+        "short": [
+          "none"
+        ],
+        "ok": [
+          "shower",
+          "bath"
+        ]
+      },
+      "impact_basis_ja": "入浴施設は 50 人に 1 つ、男女別（取組指針、スフィア基準）"
     },
     {
       "key": "water_supply",
@@ -176,12 +211,19 @@
       "category": "sanitation",
       "value_type": "boolean",
       "enum_options": null,
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 12,
-      "habitability": {
-        "kind": "boolean"
-      }
+      "impact": "life",
+      "status_rule": {
+        "kind": "enum",
+        "short": [
+          false
+        ],
+        "ok": [
+          true
+        ]
+      },
+      "impact_basis_ja": "能登の災害関連死事例集で最も多い事情が断水（164 件）。生活用水はトイレ・衛生に欠かせない（取組指針）"
     },
     {
       "key": "power_backup",
@@ -193,17 +235,22 @@
         "lighting_only",
         "full"
       ],
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 11,
-      "habitability": {
+      "impact": "life",
+      "status_rule": {
         "kind": "enum",
-        "scores": {
-          "none": 0,
-          "lighting_only": 0.5,
-          "full": 1
-        }
-      }
+        "short": [
+          "none"
+        ],
+        "ok": [
+          "full"
+        ],
+        "covered_by": [
+          "solar_battery"
+        ]
+      },
+      "impact_basis_ja": "能登の災害関連死事例集で停電 136 件、在宅医療機器の停止 5 件。停電で暖房が使えない例。太陽光＋蓄電池があれば「不足」にはしない"
     },
     {
       "key": "power_duration_h",
@@ -211,11 +258,10 @@
       "category": "power",
       "value_type": "integer",
       "enum_options": null,
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 18,
-      "habitability": null,
-      "habitability_excluded_reason": "良し悪しを決める基準値が未定"
+      "impact": null,
+      "impact_basis_ja": "参考値（判定には使わない）"
     },
     {
       "key": "solar_battery",
@@ -223,12 +269,20 @@
       "category": "power",
       "value_type": "boolean",
       "enum_options": null,
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 10,
-      "habitability": {
-        "kind": "boolean"
-      }
+      "impact": "life",
+      "status_rule": {
+        "kind": "enum",
+        "short": [],
+        "ok": [
+          true
+        ],
+        "neutral": [
+          false
+        ]
+      },
+      "impact_basis_ja": "非常用発電機の代わりになる電源。ないことだけでは不足としない"
     },
     {
       "key": "elevator",
@@ -236,11 +290,20 @@
       "category": "accessibility",
       "value_type": "boolean",
       "enum_options": null,
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 2,
-      "habitability": null,
-      "habitability_excluded_reason": "平屋の施設（体育館など）では不要なため、「なし」を減点にしない"
+      "impact": "access",
+      "status_rule": {
+        "kind": "enum",
+        "short": [],
+        "ok": [
+          true
+        ],
+        "neutral": [
+          false
+        ]
+      },
+      "impact_basis_ja": "平屋の施設では不要なので、ないことだけでは不足としない"
     },
     {
       "key": "step_free_entry",
@@ -248,12 +311,19 @@
       "category": "accessibility",
       "value_type": "boolean",
       "enum_options": null,
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 1,
-      "habitability": {
-        "kind": "boolean"
-      }
+      "impact": "access",
+      "status_rule": {
+        "kind": "enum",
+        "short": [
+          false
+        ],
+        "ok": [
+          true
+        ]
+      },
+      "impact_basis_ja": "能登の事例に転倒の記載が多い（21 件）。取組指針（バリアフリー化）"
     },
     {
       "key": "wifi",
@@ -261,12 +331,17 @@
       "category": "comms",
       "value_type": "boolean",
       "enum_options": null,
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 6,
-      "habitability": {
-        "kind": "boolean"
-      }
+      "impact": "dignity",
+      "status_rule": {
+        "kind": "enum",
+        "short": [],
+        "ok": [
+          true
+        ]
+      },
+      "impact_basis_ja": "通信・情報機器の確保（取組指針）"
     },
     {
       "key": "stockpile_onsite",
@@ -274,12 +349,19 @@
       "category": "supplies",
       "value_type": "boolean",
       "enum_options": null,
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 9,
-      "habitability": {
-        "kind": "boolean"
-      }
+      "impact": "health",
+      "status_rule": {
+        "kind": "enum",
+        "short": [
+          false
+        ],
+        "ok": [
+          true
+        ]
+      },
+      "impact_basis_ja": "指定した避難所に食料・飲料水を備蓄（取組指針）"
     },
     {
       "key": "stockpile_days",
@@ -287,15 +369,14 @@
       "category": "supplies",
       "value_type": "integer",
       "enum_options": null,
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 19,
-      "habitability": null,
-      "habitability_excluded_reason": "良し悪しを決める基準値が未定"
+      "impact": null,
+      "impact_basis_ja": "参考値（判定には使わない）"
     },
     {
       "key": "partition_kit",
-      "label_ja": "パーティション・簡易ベッド",
+      "label_ja": "間仕切り（パーティション）",
       "category": "supplies",
       "value_type": "enum",
       "enum_options": [
@@ -303,17 +384,19 @@
         "partial",
         "sufficient"
       ],
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 14,
-      "habitability": {
+      "impact": "dignity",
+      "status_rule": {
         "kind": "enum",
-        "scores": {
-          "none": 0,
-          "partial": 0.5,
-          "sufficient": 1
-        }
-      }
+        "short": [
+          "none"
+        ],
+        "ok": [
+          "sufficient"
+        ]
+      },
+      "impact_basis_ja": "間仕切りで世帯ごとの区画を設ける（取組指針）。2026-11-21 まで「パーティション・簡易ベッド」をまとめて扱っていた"
     },
     {
       "key": "kitchen",
@@ -321,12 +404,17 @@
       "category": "supplies",
       "value_type": "boolean",
       "enum_options": null,
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 8,
-      "habitability": {
-        "kind": "boolean"
-      }
+      "impact": "health",
+      "status_rule": {
+        "kind": "enum",
+        "short": [],
+        "ok": [
+          true
+        ]
+      },
+      "impact_basis_ja": "温かい食事の提供（取組指針）。能登の事例に食事・食欲不振の記載（19 件）"
     },
     {
       "key": "pet_accepted",
@@ -338,17 +426,18 @@
         "outdoor_only",
         "same_room"
       ],
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 13,
-      "habitability": {
+      "impact": "dignity",
+      "status_rule": {
         "kind": "enum",
-        "scores": {
-          "no": 0,
-          "outdoor_only": 0.5,
-          "same_room": 1
-        }
-      }
+        "short": [],
+        "ok": [
+          "outdoor_only",
+          "same_room"
+        ]
+      },
+      "impact_basis_ja": "ペット同行避難（取組指針）。受け入れがないと車中泊などにつながりうる（能登の事例に車中泊 28 件。ペットとの関係は事例集からは言えない）"
     },
     {
       "key": "capacity_persons",
@@ -356,11 +445,10 @@
       "category": "capacity",
       "value_type": "integer",
       "enum_options": null,
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 20,
-      "habitability": null,
-      "habitability_excluded_reason": "軸B の入力"
+      "impact": null,
+      "impact_basis_ja": "参考値。トイレの数の判定に使う"
     },
     {
       "key": "capacity_area_sqm",
@@ -368,11 +456,124 @@
       "category": "capacity",
       "value_type": "integer",
       "enum_options": null,
-      "weight": 1,
       "help_text": "",
       "onsite_rank": 21,
-      "habitability": null,
-      "habitability_excluded_reason": "軸B の入力"
+      "impact": null,
+      "impact_basis_ja": "参考値。1 人あたり最低 3.5㎡（スフィア基準）と比べて示す"
+    },
+    {
+      "key": "bed_kit",
+      "label_ja": "簡易ベッド（段ボールベッドなど）",
+      "category": "supplies",
+      "value_type": "enum",
+      "enum_options": [
+        "none",
+        "partial",
+        "sufficient"
+      ],
+      "help_text": "",
+      "onsite_rank": 22,
+      "impact": "life",
+      "status_rule": {
+        "kind": "enum",
+        "short": [
+          "none"
+        ],
+        "ok": [
+          "sufficient"
+        ]
+      },
+      "impact_basis_ja": "床に長く横たわるとエコノミークラス症候群や、ほこりの吸い込みによる健康被害が出るため、ベッドの設置が望ましい（取組指針）"
+    },
+    {
+      "key": "toilet_water_outage",
+      "label_ja": "断水しても使えるトイレの手段（マンホールトイレ・携帯トイレの備蓄など）",
+      "category": "sanitation",
+      "value_type": "boolean",
+      "enum_options": null,
+      "help_text": "",
+      "onsite_rank": 23,
+      "impact": "life",
+      "status_rule": {
+        "kind": "enum",
+        "short": [
+          false
+        ],
+        "ok": [
+          true
+        ]
+      },
+      "impact_basis_ja": "断水で水洗トイレが使えなくなると、排泄の我慢から脱水・エコノミークラス症候群につながる（トイレガイドライン）。能登の事例で断水が最多（164 件）"
+    },
+    {
+      "key": "changing_nursing_room",
+      "label_ja": "男女別の更衣室・授乳室",
+      "category": "privacy",
+      "value_type": "boolean",
+      "enum_options": null,
+      "help_text": "",
+      "onsite_rank": 24,
+      "impact": "dignity",
+      "status_rule": {
+        "kind": "enum",
+        "short": [
+          false
+        ],
+        "ok": [
+          true
+        ]
+      },
+      "impact_basis_ja": "男女別の更衣室・授乳室の設置によるプライバシーの確保（取組指針）"
+    },
+    {
+      "key": "toilet_lighting_security",
+      "label_ja": "トイレまでの夜間照明・防犯の備え",
+      "category": "privacy",
+      "value_type": "boolean",
+      "enum_options": null,
+      "help_text": "",
+      "onsite_rank": 25,
+      "impact": "dignity",
+      "status_rule": {
+        "kind": "enum",
+        "short": [
+          false
+        ],
+        "ok": [
+          true
+        ]
+      },
+      "impact_basis_ja": "夜間照明を個室内・トイレまでの経路に設置、防犯ブザー等（トイレガイドライン）"
     }
-  ]
+  ],
+  "impacts": [
+    {
+      "key": "life",
+      "label_ja": "命にかかわる",
+      "help_ja": "欠けると、災害関連死につながる経路が公的資料で示されている設備",
+      "short_ja": "命にかかわる"
+    },
+    {
+      "key": "health",
+      "label_ja": "健康",
+      "help_ja": "避難生活の長期化で、体調の悪化や感染症につながる設備",
+      "short_ja": "健康"
+    },
+    {
+      "key": "dignity",
+      "label_ja": "尊厳・プライバシー・安全",
+      "help_ja": "着替え・授乳・就寝の区画、夜間の安全、情報とのつながり",
+      "short_ja": "尊厳・安全"
+    },
+    {
+      "key": "access",
+      "label_ja": "使えるかどうか（高齢者・障害者）",
+      "help_ja": "高齢者や障害のある人が、実際に使えるかどうか",
+      "short_ja": "使いやすさ"
+    }
+  ],
+  "seasons_ja": {
+    "summer": "夏",
+    "winter": "冬"
+  }
 }

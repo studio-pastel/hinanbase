@@ -6,6 +6,7 @@ import { MapView } from '../components/MapView.tsx'
 import { AttentionMark, StateLabel, StateMark } from '../components/StateMark.tsx'
 import type { GeocodeHit } from '../../shared/geocode.ts'
 import { fmt, ja, pct } from '../i18n/ja.ts'
+import { amenityByKey, impacts, seasonLabel } from '../lib/amenities.ts'
 import { loadGeocode, resolvePrefs, searchAddress, suggestMunis, suggestTowns, type Suggestion } from '../lib/addressSearch.ts'
 import { DATA_BASE_URL, useMuniIndex, useNational } from '../lib/data.ts'
 import { loadMapView, saveMapView } from '../lib/places.ts'
@@ -19,7 +20,7 @@ export function MapPage() {
   const [selected, setSelected] = useState<MapFeature | null>(null)
   const [overlay, setOverlay] = useState<HazardOverlay | null>(null)
   // 設備の情報はほぼ公表されていないため、最初は分かっている指標（洪水の浸水深）で色分けする（DATA_NOTES 14.5）
-  const [colorBy, setColorBy] = useState<ColorBy>('flood')
+  const [colorBy, setColorBy] = useState<ColorBy>('state')
   const [panelOpen, setPanelOpen] = useState(false)
   // 前回見ていた場所（なければ保存した場所）から表示する。どちらもなければ全国
   const [initialView] = useState(() => loadMapView())
@@ -361,20 +362,40 @@ function SelectedSheet({ feature, onClose }: { feature: MapFeature; onClose: () 
         </div>
         <button type="button" onClick={onClose} aria-label={ja.map.selectedClose} className="-mr-2 h-11 w-11 shrink-0 rounded-full text-2xl leading-none hover:bg-paper">×</button>
       </div>
+      <p className="m-0 mt-2 text-base"><StateLabel state={feature.state} restrictedOnly={feature.restrictedOnly} /></p>
+      {/* 設備の評価（DATA_NOTES 16.3）。いちばん大事な情報なので先に出す */}
+      <dl className="m-0 mt-2 grid grid-cols-2 gap-2">
+        {impacts.map((imp) => {
+          const code = feature.impact[imp.key as keyof MapFeature['impact']] ?? 0
+          const st = (['unknown', 'ok', 'limited', 'short'] as const)[code] ?? 'unknown'
+          return (
+            <div key={imp.key} className={`rounded-xl px-3 py-2 ${st === 'short' ? 'border-2 border-state-critical bg-white' : 'bg-paper'}`}>
+              <dt className="text-xs text-ink-soft">{imp.short_ja}</dt>
+              <dd className={`m-0 text-base ${st === 'short' ? 'font-bold text-state-critical' : st === 'unknown' ? 'text-ink-soft' : 'font-bold'}`}>{ja.facility.impactStatus[st]}</dd>
+            </div>
+          )
+        })}
+      </dl>
+      {feature.shortKeys.length > 0 && (
+        <p className="m-0 mt-2 text-sm">
+          <span className="text-ink-soft">{ja.facility.shortReason}：</span>
+          <strong>{feature.shortKeys.map((k) => {
+            const d = amenityByKey.get(k)
+            const season = seasonLabel(d?.season)
+            return d ? `${d.label_ja}${season ? `（${ja.facility.seasonTag(season)}）` : ''}` : k
+          }).join('、')}</strong>
+        </p>
+      )}
       {feature.attention && (
         <p className="m-0 mt-3 flex items-center gap-2 rounded-xl bg-paper px-3 py-2 text-sm font-bold"><AttentionMark />{ja.map.attentionSheet}</p>
       )}
       <dl className="m-0 mt-3 grid grid-cols-2 gap-2">
         {facts.map(([k, v, strong]) => (
-          <div key={k} className="rounded-xl bg-paper px-3 py-2">
+          <div key={k} className="rounded-xl border border-line px-3 py-1.5">
             <dt className="text-xs text-ink-soft">{k}</dt>
-            <dd className={`m-0 text-base ${strong ? 'font-bold' : ''}`}>{v}</dd>
+            <dd className={`m-0 text-sm ${strong ? 'font-bold' : ''}`}>{v}</dd>
           </div>
         ))}
-        <div className="col-span-2 rounded-xl bg-paper px-3 py-2">
-          <dt className="text-xs text-ink-soft">{t.names.state}</dt>
-          <dd className="m-0 text-base"><StateLabel state={feature.state} restrictedOnly={feature.restrictedOnly} /></dd>
-        </div>
       </dl>
       <Link to="/f/$muniKey/$facilityId" params={{ muniKey: feature.muni, facilityId: feature.id }}
         className="mt-4 flex min-h-12 w-full items-center justify-center rounded-full bg-ink text-base font-bold text-white no-underline">

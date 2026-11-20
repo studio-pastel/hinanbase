@@ -2,9 +2,9 @@
 //   * 入力が欠けている軸は null（未評価）。0 や平均値で埋めない。
 //   * 総合点（単一の数値）は作らない。
 //   * 算出根拠は breakdown にすべて残す。
-import { HAZARD_KEYS, type AmenityValue, type DisplayState, type EmergencyDesignation, type HazardCheck, type HazardKey, type RoadAccess, type Scores } from './types.ts'
+import { HAZARD_KEYS, IMPACTS, type AmenityValue, type DisplayState, type EmergencyDesignation, type HazardCheck, type HazardKey, type Impact, type ImpactStatus, type RoadAccess, type Scores } from './types.ts'
 
-export const SCORE_METHOD_VERSION = 'phase4-5'
+export const SCORE_METHOD_VERSION = 'impact-1'
 
 /** 想定区域のデータ（ハザードマップポータルサイト）と照合できる災害種別。地震・大規模な火事・火山現象は対応するデータがない */
 export const ZONE_CHECKABLE: HazardKey[] = ['flood', 'landslide', 'storm_surge', 'tsunami', 'inland_flood']
@@ -32,47 +32,89 @@ export function hazardCheck(designations: Pick<EmergencyDesignation, 'hazards' |
   }
 }
 
-export type HabitabilityRule =
-  | { kind: 'boolean' }
-  | { kind: 'enum'; scores: Record<string, number> }
-  | { kind: 'ratio'; max: number }
+export type ItemStatus = 'ok' | 'limited' | 'short' | 'neutral' | 'unknown'
+
+export type StatusRule =
+  | { kind: 'enum'; short: (string | boolean)[]; ok: (string | boolean)[]; neutral?: (string | boolean)[]; covered_by?: string[] }
+  | { kind: 'min'; short_below: number; ok_from: number }
+  | { kind: 'per_capacity'; max_persons_per_unit: number }
 
 export interface ScoringDef {
   key: string
-  weight: number
-  /** 軸C（生活環境）での採点方法。null は軸C の対象外 */
-  habitability: HabitabilityRule | null
+  /** どの観点に効くか（DATA_NOTES 16.3）。null は参考値で、判定に使わない */
+  impact: Impact | null
+  /** 重さが季節で変わる項目（冷房は夏、暖房は冬）。表示状態は季節で変えず、画面で季節を明示する */
+  season?: 'summer' | 'winter'
+  status_rule?: StatusRule
 }
 
-/** 1項目の得点（0〜1）。採点できない値は null */
-export function itemScore(rule: HabitabilityRule, value: AmenityValue['value']): number | null {
-  if (rule.kind === 'boolean') return typeof value === 'boolean' ? (value ? 1 : 0) : null
-  if (rule.kind === 'enum') return typeof value === 'string' && value in rule.scores ? rule.scores[value]! : null
-  if (typeof value !== 'number' || !Number.isFinite(value)) return null
-  return Math.min(1, Math.max(0, value / rule.max))
+const usable = (v: AmenityValue | undefined) => (v && v.confidence !== 'disputed' ? v : undefined)
+
+/**
+ * 1 項目の状態。不足（short）・一部（limited）・充足（ok）・判定に数えない（neutral）・未確認（unknown）。
+ * 未確認の値を「なし」として扱わない。
+ */
+export function itemStatus(def: ScoringDef, amenities: Record<string, AmenityValue>): ItemStatus {
+  const rule = def.status_rule
+  const v = usable(amenities[def.key])
+  if (!rule || !v) return 'unknown'
+  if (rule.kind === 'enum') {
+    if (rule.neutral?.includes(v.value as string | boolean)) return 'neutral'
+    if (rule.ok.includes(v.value as string | boolean)) return 'ok'
+    if (rule.short.includes(v.value as string | boolean)) {
+      // 代わりになる設備が充足していれば、不足にはしない（例：非常用発電機がなくても、太陽光＋蓄電池がある）
+      const covered = (rule.covered_by ?? []).some((k) => {
+        const c = usable(amenities[k])
+        return c !== undefined && c.value === true
+      })
+      return covered ? 'limited' : 'short'
+    }
+    return 'limited'
+  }
+  if (typeof v.value !== 'number' || !Number.isFinite(v.value)) return 'unknown'
+  if (rule.kind === 'min') return v.value < rule.short_below ? 'short' : v.value >= rule.ok_from ? 'ok' : 'limited'
+  // 人数あたりの数：想定収容人数がそろったときだけ判定する
+  const persons = usable(amenities.capacity_persons)
+  if (!persons || typeof persons.value !== 'number' || persons.value <= 0) return 'unknown'
+  if (v.value <= 0) return 'short'
+  return persons.value / v.value > rule.max_persons_per_unit ? 'short' : 'ok'
+}
+
+/**
+ * 観点ごとの状態。どれか 1 つでも不足なら不足（他の項目の充足で打ち消さない）。
+ * 判定に数える項目がすべて確認済みで、すべて充足なら充足、一部があれば一部。確認できていない項目が残れば未確認。
+ */
+export function perspectiveStatus(statuses: ItemStatus[]): ImpactStatus {
+  const counted = statuses.filter((s) => s !== 'neutral')
+  if (counted.includes('short')) return 'short'
+  if (counted.length === 0 || counted.includes('unknown')) return 'unknown'
+  return counted.includes('limited') ? 'limited' : 'ok'
+}
+
+/**
+ * 表示状態（SPEC §3.6、DATA_NOTES 16.3）。
+ *   要確認（重要）：命にかかわる設備の不足が確定している。または、命にかかわる設備がすべて確認済みで、指定の災害種別が想定区域と重なる
+ *   要確認：健康・尊厳・利用の観点で不足が確定している
+ *   良好：4 観点すべて充足、想定区域との重なりなし、緊急輸送道路の点数が 75 以上
+ *   概ね良好：命にかかわる設備がすべて確認済み（不足なし）
+ *   未確認：それ以外（命にかかわる設備に確認できていないものが残る）
+ * 軸D（緊急輸送道路までの距離）は立地の条件なので、良好の条件にだけ使う。
+ */
+export function displayState(
+  impact: Record<Impact, ImpactStatus>,
+  logistics: number | null,
+  hazardStatus: HazardCheck['status'] = 'not_evaluated',
+): DisplayState {
+  if (impact.life === 'short') return 'critical'
+  const lifeKnown = impact.life === 'ok' || impact.life === 'limited'
+  if (impact.health === 'short' || impact.dignity === 'short' || impact.access === 'short') return lifeKnown && hazardStatus === 'attention' ? 'critical' : 'poor'
+  if (!lifeKnown) return 'unknown'
+  if (hazardStatus === 'attention') return 'critical'
+  if (IMPACTS.every((k) => impact[k] === 'ok') && hazardStatus === 'no_overlap_found' && logistics !== null && logistics >= 75) return 'good'
+  return 'fair'
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10
-
-/**
- * 表示状態（SPEC §3.6、DATA_NOTES D-30）。
- * 「要確認（重要）」「要確認」に下げるのは、軸A の重なりと、施設そのものの状態である軸C（生活環境）だけ。
- * 軸D（緊急輸送道路までの距離）は立地の条件で、施設の不備ではないので、表示状態を下げない。
- * 「良好」にするには、軸C・D がどちらも評価済みで 75 以上、かつ軸A で重なりが見つからなかったことを求める。
- */
-export function displayState(
-  axes: { habitability: number | null; logistics: number | null },
-  coverageRatio: number,
-  hazardStatus: HazardCheck['status'] = 'not_evaluated',
-): DisplayState {
-  if (coverageRatio < 0.4) return 'unknown'
-  const c = axes.habitability
-  const d = axes.logistics
-  if (hazardStatus === 'attention' || (c !== null && c < 25)) return 'critical'
-  if (c !== null && c < 50) return 'poor'
-  if (c !== null && c >= 75 && d !== null && d >= 75 && hazardStatus === 'no_overlap_found') return 'good'
-  return 'fair'
-}
 
 /** 軸D の距離の点数（SPEC §3.5）。上から順に、最初に当てはまる行を使う */
 export const ROAD_DISTANCE_SCORES = [
@@ -140,7 +182,7 @@ export function capacityReference(persons: AmenityValue | undefined, area: Ameni
   }
 }
 
-/** 確定設備値などから各軸を算出する。点数を出すのは軸C（生活環境）と軸D（到達性・兵站）。軸A・B は点数を出さない */
+/** 確定設備値などから各軸を算出する。点数を出すのは軸D（到達性・兵站）だけ。設備は観点ごとの状態で示す（総合点は作らない） */
 export function computeScores(
   amenities: Record<string, AmenityValue>,
   defs: ScoringDef[],
@@ -148,41 +190,37 @@ export function computeScores(
   road?: RoadAccess,
 ): Scores {
   const hazard = hazardCheck(emergencySites)
-  // 争点中（disputed）の項目は未回答として扱う
-  const answered = (key: string) => {
-    const v = amenities[key]
-    return v && v.confidence !== 'disputed' ? v : undefined
-  }
-  const totalWeight = defs.reduce((s, d) => s + d.weight, 0)
-  const answeredWeight = defs.reduce((s, d) => s + (answered(d.key) ? d.weight : 0), 0)
-  const coverage = totalWeight === 0 ? 0 : answeredWeight / totalWeight
+  const answered = defs.filter((d) => usable(amenities[d.key])).length
+  const coverage = defs.length === 0 ? 0 : answered / defs.length
 
-  const scored = defs.filter((d) => d.habitability !== null)
-  const scoredWeight = scored.reduce((s, d) => s + d.weight, 0)
-  let sum = 0
-  let scoredAnswered = 0
-  const items: Record<string, unknown> = {}
-  for (const d of scored) {
-    const v = answered(d.key)
-    const score = v ? itemScore(d.habitability!, v.value) : null
-    if (score !== null) {
-      sum += score * d.weight
-      scoredAnswered++
+  const perspectives = {} as Record<Impact, { status: ImpactStatus; items: Record<string, unknown> }>
+  const impact = {} as Record<Impact, ImpactStatus>
+  for (const k of IMPACTS) {
+    const items: Record<string, unknown> = {}
+    const statuses: ItemStatus[] = []
+    for (const d of defs.filter((x) => x.impact === k)) {
+      const st = itemStatus(d, amenities)
+      statuses.push(st)
+      const v = amenities[d.key]
+      items[d.key] = {
+        status: st,
+        value: v ? v.value : null,
+        ...(v?.confidence === 'disputed' ? { note: '争点中のため未確認として扱う' } : {}),
+        ...(v?.source ? { source: v.source } : {}),
+        ...(d.season ? { season: d.season } : {}),
+      }
     }
-    // 未回答の項目も分母から除外しない（得点 0 として効く）ことを、根拠に明示しておく
-    items[d.key] = v
-      ? { value: v.value, confidence: v.confidence, score, weight: d.weight }
-      : { value: null, score: null, weight: d.weight, note: amenities[d.key] ? '争点中のため未回答として扱う' : '未回答' }
+    impact[k] = perspectiveStatus(statuses)
+    perspectives[k] = { status: impact[k], items }
   }
-  // 採点対象の回答が1つもなければ、軸C は未評価（0 点ではない）
-  const habitability = scoredAnswered === 0 || scoredWeight === 0 ? null : round1((sum / scoredWeight) * 100)
   const logistics = logisticsScore(road, amenities.stockpile_onsite)
-  const axes = { hazard: null, capacity: null, habitability, logistics: logistics.score }
+  const axes = { hazard: null, capacity: null, logistics: logistics.score }
   const coverageRatio = Math.round(coverage * 1000) / 1000
   return {
     ...axes,
+    impact,
     coverage_ratio: coverageRatio,
-    display_state: displayState(axes, coverageRatio, hazard.status),
+    display_state: displayState(impact, logistics.score, hazard.status),
     hazard_check: hazard,
     breakdown: {
       method_version: SCORE_METHOD_VERSION,
@@ -196,22 +234,17 @@ export function computeScores(
       },
       capacity: capacityReference(amenities.capacity_persons, amenities.capacity_area_sqm, amenities.toilet_total),
       logistics: logistics.breakdown,
-      habitability:
-        habitability === null
-          ? { status: 'not_evaluated', reason: '採点対象の設備情報なし', scored_weight: scoredWeight }
-          : {
-              status: 'evaluated',
-              formula: 'Σ(項目の得点 × 重み) ÷ Σ(採点対象の全項目の重み) × 100。未回答の項目は分母から除外しない',
-              weighted_sum: round1(sum * 100) / 100,
-              scored_weight: scoredWeight,
-              answered_items: scoredAnswered,
-              items,
-              excluded: defs.filter((d) => d.habitability === null).map((d) => d.key),
-            },
+      impact: {
+        method:
+          '設備ごとに、命にかかわる／健康／尊厳・プライバシー・安全／使えるかどうか（高齢者・障害者）のどれに効くかを決め、' +
+          '観点ごとに「不足・一部・充足・未確認」を示す。1 つでも不足が確定した観点は不足（他の設備の充足で打ち消さない）。' +
+          '点数の足し算はしない。根拠は DATA_NOTES 16.2・16.3',
+        perspectives,
+      },
       coverage: {
-        formula: 'Σ(回答済み項目の重み) ÷ Σ(全項目の重み)。40% 未満は「未確認」',
-        answered_weight: answeredWeight,
-        total_weight: totalWeight,
+        formula: '確認済みの設備項目の数 ÷ 全項目の数（参考値。表示状態には使わない）',
+        answered,
+        total: defs.length,
       },
     },
   }

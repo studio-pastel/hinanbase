@@ -40,7 +40,7 @@ execFileSync('tippecanoe', [
   '-o', pointsOut, '--force', '-l', 'shelters', '-P', '--quiet',
   `-Z${MIN_ZOOM}`, `-z${POINT_ZOOM}`, '-r1', '-b0',
   ...['ne', 'ns', 'acn', 'hm', ...sums.filter((a) => /^[hs]\d$/.test(a))].map((a) => `-y${a}`),
-  '-yid', '-yname', '-ymuni', '-ykind', '-yhz', '-ystate', '-yrs', '-yac', '-yfd', '-ytd', '-ysd', '-yls', '-yrd',
+  '-yid', '-yname', '-ymuni', '-ykind', '-yhz', '-ystate', '-yrs', '-yac', '-yfd', '-ytd', '-ysd', '-yls', '-yrd', '-yil', '-yih', '-yidg', '-yia', '-ysk',
   '--no-feature-limit', '--no-tile-size-limit',
   '--name=HinanBase shelters (points)',
   '--attribution=国土地理院「指定緊急避難場所・指定避難所データ」',

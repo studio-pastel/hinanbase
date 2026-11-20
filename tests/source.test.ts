@@ -39,7 +39,7 @@ describe('D1 の CSV の読み込み', () => {
 describe('施設データの組み立て', () => {
   it('Phase 1 のスコアは4軸とも null（0 で埋めない）で、根拠を breakdown に持つ', () => {
     const s = phase1Scores()
-    expect([s.hazard, s.capacity, s.habitability, s.logistics]).toEqual([null, null, null, null])
+    expect([s.hazard, s.capacity, s.logistics]).toEqual([null, null, null])
     expect(s.display_state).toBe('unknown')
     expect(s.breakdown.method_version).toBeTypeOf('string')
     expect(s.coverage_ratio).toBe(0)

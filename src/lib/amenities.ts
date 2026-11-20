@@ -8,26 +8,31 @@ export interface AmenityDef {
   category: string
   value_type: string
   enum_options: string[] | null
-  weight: number
   help_text: string
   /** 現地で目視確認しやすい順（小さいほど先）。投稿フォームの並び順に使う */
   onsite_rank: number
-  habitability: unknown
-  habitability_excluded_reason?: string
+  /** 影響の観点（DATA_NOTES 16.3）。null は参考値 */
+  impact: string | null
+  season?: string
+  /** なぜ重要か（出典の要約） */
+  impact_basis_ja: string
 }
+
+export const impacts: { key: string; label_ja: string; short_ja: string; help_ja: string }[] = defs.impacts
+export const seasonLabel = (s: string | undefined) => (s ? (defs.seasons_ja as Record<string, string>)[s] ?? s : undefined)
 
 export const amenityCategories: { key: string; label_ja: string; items: AmenityDef[] }[] = defs.categories.map((c) => ({
   ...c,
-  items: (defs.amenities as AmenityDef[]).filter((a) => a.category === c.key),
+  items: (defs.amenities as unknown as AmenityDef[]).filter((a) => a.category === c.key),
 }))
 
 const enumLabels: Record<string, string> = defs.enum_labels_ja
 
 /** 投稿フォームの順：現地で目視確認しやすい項目から（SPEC §6.4） */
-export const amenitiesByOnsiteRank: AmenityDef[] = [...(defs.amenities as AmenityDef[])].sort(
+export const amenitiesByOnsiteRank: AmenityDef[] = [...(defs.amenities as unknown as AmenityDef[])].sort(
   (a, b) => a.onsite_rank - b.onsite_rank,
 )
-export const amenityByKey = new Map((defs.amenities as AmenityDef[]).map((a) => [a.key, a]))
+export const amenityByKey = new Map((defs.amenities as unknown as AmenityDef[]).map((a) => [a.key, a]))
 export const enumLabel = (v: string) => enumLabels[v] ?? v
 
 /** 値そのものの表示（信頼度に関係なく） */

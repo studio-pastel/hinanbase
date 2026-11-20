@@ -26,6 +26,9 @@ export interface MapFeature {
   attention: boolean
   /** 地点の指標（属性がないものは undefined = 未確認） */
   metrics: { flood?: number; tsunami?: number; storm_surge?: number; landslide?: number; road?: number }
+  /** 設備の観点ごとの状態（0=未確認 1=充足 2=一部 3=不足）と、不足が確定した設備の key */
+  impact: { life: number; health: number; dignity: number; access: number }
+  shortKeys: string[]
   lng: number
   lat: number
 }

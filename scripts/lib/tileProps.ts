@@ -31,6 +31,15 @@ export function tileProps(f: Facility, muniKey: string): Record<string, string |
     hm: f.scores.hazard_check.status === 'attention' ? 1 : 0,
   }
   if (ac !== undefined) props.ac = ac
+  // 設備の観点ごとの状態（DATA_NOTES 16.3）：0=未確認 1=充足 2=一部 3=不足。不足が確定した設備の key も持たせる（カードで理由を出すため）
+  const code = { unknown: 0, ok: 1, limited: 2, short: 3 } as const
+  const im = f.scores.impact
+  if (im) {
+    props.il = code[im.life]; props.ih = code[im.health]; props.idg = code[im.dignity]; props.ia = code[im.access]
+    const persp = (f.scores.breakdown as { impact?: { perspectives?: Record<string, { items?: Record<string, { status?: string }> }> } }).impact?.perspectives
+    const shortKeys = persp ? Object.values(persp).flatMap((x) => Object.entries(x.items ?? {}).filter(([, v]) => v.status === 'short').map(([k]) => k)) : []
+    if (shortKeys.length > 0) props.sk = shortKeys.join(',')
+  }
   // 色分けの指標（DATA_NOTES 14.5）。分からないものは属性自体を持たせない（未確認）
   const d = f.depth
   if (d?.flood !== undefined) props.fd = d.flood

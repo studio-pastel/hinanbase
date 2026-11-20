@@ -16,7 +16,7 @@ export function isRestricted(r: SourceRow): boolean {
 
 /** 設備情報がない状態のスコア。4軸すべて未評価（null）。0 や平均値では埋めない（CLAUDE.md 絶対ルール 1・2） */
 export function phase1Scores(): Scores {
-  return computeScores({}, amenityDefs.amenities as ScoringDef[])
+  return computeScores({}, amenityDefs.amenities as unknown as ScoringDef[])
 }
 
 export function buildFacility(id: string, cluster: Cluster): Facility {

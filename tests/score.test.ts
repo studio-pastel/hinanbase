@@ -1,126 +1,136 @@
 import { describe, expect, it } from 'vitest'
 import defsJson from '../config/amenity-defs.json' with { type: 'json' }
-import { computeScores, displayState, itemScore, type HabitabilityRule, type ScoringDef } from '../shared/score.ts'
+import { computeScores, displayState, itemStatus, perspectiveStatus, type ScoringDef } from '../shared/score.ts'
 import type { AmenityValue } from '../shared/types.ts'
 import type { MapFilter } from '../src/lib/map/MapAdapter.ts'
 
-const defs = defsJson.amenities as ScoringDef[]
+const defs = defsJson.amenities as unknown as ScoringDef[]
 const v = (value: AmenityValue['value'], confidence: AmenityValue['confidence'] = 'reported'): AmenityValue => ({
   value, confidence, observed_at: '2026-11-01', evidence_count: 1,
 })
 
-describe('設備項目マスタの採点表', () => {
-  it('軸C の対象は 15 項目。エレベーターと数量の 5 項目は対象外', () => {
-    expect(defs.filter((d) => d.habitability !== null)).toHaveLength(15)
-    const excluded = defs.filter((d) => d.habitability === null).map((d) => d.key).sort()
-    expect(excluded).toEqual(['capacity_area_sqm', 'capacity_persons', 'elevator', 'power_duration_h', 'stockpile_days', 'toilet_total'])
+const LIFE = ['aircon_main_hall', 'heating_main_hall', 'toilet_total', 'water_supply', 'power_backup', 'solar_battery', 'bed_kit', 'toilet_water_outage']
+const lifeOk = (): Record<string, AmenityValue> => ({
+  aircon_main_hall: v('full'), heating_main_hall: v('full'), toilet_total: v(10), capacity_persons: v(300),
+  water_supply: v(true), power_backup: v('full'), solar_battery: v(false), bed_kit: v('sufficient'), toilet_water_outage: v(true),
+})
+const allOk = (): Record<string, AmenityValue> => ({
+  ...lifeOk(), insulation: v(true), shower: v('shower'), stockpile_onsite: v(true), kitchen: v(true),
+  toilet_western_ratio: v(80), toilet_multipurpose: v(true), elevator: v(false), step_free_entry: v(true),
+  wifi: v(true), partition_kit: v('sufficient'), pet_accepted: v('outdoor_only'), changing_nursing_room: v(true), toilet_lighting_security: v(true),
+})
+
+describe('設備項目マスタの判定規則', () => {
+  it('参考値以外のすべての項目に、観点と判定規則がある', () => {
+    for (const d of defs) {
+      if (d.impact === null) expect(d.status_rule).toBeUndefined()
+      else expect(['life', 'health', 'dignity', 'access']).toContain(d.impact)
+    }
+    expect(defs.filter((d) => d.impact === 'life').map((d) => d.key).sort()).toEqual([...LIFE].sort())
   })
-  it('選択肢の採点表は、マスタの選択肢と過不足なく対応する', () => {
+  it('選択肢の判定規則は、マスタの選択肢だけを使う', () => {
     for (const d of defsJson.amenities) {
-      const rule = d.habitability as HabitabilityRule | null
-      if (rule?.kind === 'enum') expect(Object.keys(rule.scores).sort()).toEqual([...d.enum_options!].sort())
+      const r = (d as { status_rule?: { kind: string; short?: unknown[]; ok?: unknown[]; neutral?: unknown[] } }).status_rule
+      if (r?.kind !== 'enum') continue
+      const allowed = d.value_type === 'boolean' ? [true, false] : d.enum_options!
+      for (const x of [...(r.short ?? []), ...(r.ok ?? []), ...(r.neutral ?? [])]) expect(allowed).toContain(x)
     }
   })
 })
 
-describe('項目の得点', () => {
-  it('あり／なし、選択肢、割合', () => {
-    expect(itemScore({ kind: 'boolean' }, true)).toBe(1)
-    expect(itemScore({ kind: 'boolean' }, false)).toBe(0)
-    expect(itemScore({ kind: 'enum', scores: { none: 0, full: 1 } }, 'full')).toBe(1)
-    expect(itemScore({ kind: 'ratio', max: 100 }, 60)).toBe(0.6)
-    expect(itemScore({ kind: 'ratio', max: 100 }, 250)).toBe(1)
+describe('項目の状態', () => {
+  const def = (key: string) => defs.find((d) => d.key === key)!
+  it('未確認の値を「なし」として扱わない', () => {
+    expect(itemStatus(def('aircon_main_hall'), {})).toBe('unknown')
+    expect(itemStatus(def('aircon_main_hall'), { aircon_main_hall: v('none') })).toBe('short')
+    expect(itemStatus(def('aircon_main_hall'), { aircon_main_hall: v('spot_only') })).toBe('limited')
+    expect(itemStatus(def('aircon_main_hall'), { aircon_main_hall: v('present') })).toBe('ok')
   })
-  it('型の合わない値は採点しない', () => {
-    expect(itemScore({ kind: 'boolean' }, 'yes')).toBeNull()
-    expect(itemScore({ kind: 'enum', scores: { none: 0 } }, 'other')).toBeNull()
+  it('争点中の値は未確認', () => {
+    expect(itemStatus(def('water_supply'), { water_supply: v(false, 'disputed') })).toBe('unknown')
+  })
+  it('非常用発電機がなくても、太陽光＋蓄電池があれば不足にしない', () => {
+    expect(itemStatus(def('power_backup'), { power_backup: v('none') })).toBe('short')
+    expect(itemStatus(def('power_backup'), { power_backup: v('none'), solar_battery: v(true) })).toBe('limited')
+  })
+  it('エレベーターがないことだけでは判定に数えない', () => {
+    expect(itemStatus(def('elevator'), { elevator: v(false) })).toBe('neutral')
+  })
+  it('トイレの数は想定収容人数とあわせて判定する（50 人に 1 基）', () => {
+    expect(itemStatus(def('toilet_total'), { toilet_total: v(10) })).toBe('unknown')
+    expect(itemStatus(def('toilet_total'), { toilet_total: v(10), capacity_persons: v(500) })).toBe('ok')
+    expect(itemStatus(def('toilet_total'), { toilet_total: v(10), capacity_persons: v(501) })).toBe('short')
+  })
+  it('洋式が 1 つもなければ不足', () => {
+    expect(itemStatus(def('toilet_western_ratio'), { toilet_western_ratio: v(0) })).toBe('short')
+    expect(itemStatus(def('toilet_western_ratio'), { toilet_western_ratio: v(30) })).toBe('ok')
   })
 })
 
-describe('4軸の算出', () => {
-  it('設備情報がなければ、4軸とも未評価（null）で「未確認」。0 点にしない', () => {
+describe('観点ごとの状態', () => {
+  it('1 つでも不足なら不足。他の項目の充足で打ち消さない', () => {
+    expect(perspectiveStatus(['ok', 'ok', 'short'])).toBe('short')
+    expect(perspectiveStatus(['short', 'unknown'])).toBe('short')
+  })
+  it('確認できていない項目が残れば未確認。判定に数えない項目は除く', () => {
+    expect(perspectiveStatus(['ok', 'unknown'])).toBe('unknown')
+    expect(perspectiveStatus(['ok', 'neutral'])).toBe('ok')
+    expect(perspectiveStatus(['ok', 'limited'])).toBe('limited')
+    expect(perspectiveStatus([])).toBe('unknown')
+  })
+})
+
+describe('設備の算出', () => {
+  it('設備情報がなければ、観点はすべて未確認で「未確認」。0 点にしない', () => {
     const s = computeScores({}, defs)
-    expect([s.hazard, s.capacity, s.habitability, s.logistics]).toEqual([null, null, null, null])
+    expect([s.hazard, s.capacity, s.logistics]).toEqual([null, null, null])
+    expect(s.impact).toEqual({ life: 'unknown', health: 'unknown', dignity: 'unknown', access: 'unknown' })
     expect(s.coverage_ratio).toBe(0)
     expect(s.display_state).toBe('unknown')
     expect(s).not.toHaveProperty('total')
   })
-
-  it('冷房「全体」だけ分かっている施設：軸C は 1 ÷ 15 = 6.7 点。回答率が低いので「未確認」のまま', () => {
-    const s = computeScores({ aircon_main_hall: v('full') }, defs)
-    expect(s.habitability).toBe(6.7)
-    expect(s.coverage_ratio).toBe(0.048)
-    expect(s.display_state).toBe('unknown')
-  })
-
-  it('エレベーターは点数に影響しないが、回答率には数える', () => {
-    const base = computeScores({ aircon_main_hall: v('full') }, defs)
-    const withElevator = computeScores({ aircon_main_hall: v('full'), elevator: v(false) }, defs)
-    expect(withElevator.habitability).toBe(base.habitability)
-    expect(withElevator.coverage_ratio).toBeGreaterThan(base.coverage_ratio)
-  })
-
-  it('採点対象外の項目しか分からなければ、軸C は未評価', () => {
-    expect(computeScores({ elevator: v(true), capacity_persons: v(300) }, defs).habitability).toBeNull()
-  })
-
-  it('9 項目がすべて満点なら 60 点で「一部充足」。4 軸そろわないので「充足」にはならない', () => {
-    const keys = ['aircon_main_hall', 'heating_main_hall', 'insulation', 'toilet_multipurpose', 'water_supply', 'solar_battery', 'step_free_entry', 'wifi', 'kitchen']
-    const a = Object.fromEntries(keys.map((k) => [k, v(k.endsWith('main_hall') ? 'full' : true)]))
-    const s = computeScores(a, defs)
-    expect(s.habitability).toBe(60)
-    expect(s.coverage_ratio).toBe(0.429)
-    expect(s.display_state).toBe('fair')
-  })
-
-  it('9 項目そろっていて設備がほとんどなければ「要確認（重要）」', () => {
-    const keys = ['aircon_main_hall', 'heating_main_hall', 'insulation', 'toilet_multipurpose', 'water_supply', 'solar_battery', 'step_free_entry', 'wifi', 'kitchen']
-    const a = Object.fromEntries(keys.map((k) => [k, v(k.endsWith('main_hall') ? 'none' : false)]))
-    const s = computeScores({ ...a, wifi: v(true) }, defs)
-    expect(s.habitability).toBe(6.7)
+  it('命にかかわる設備の不足が 1 つ確定すれば、ほかが未確認でも「要確認（重要）」', () => {
+    const s = computeScores({ aircon_main_hall: v('none') }, defs)
+    expect(s.impact.life).toBe('short')
     expect(s.display_state).toBe('critical')
   })
-
-  it('争点中の項目は未回答として扱う', () => {
-    const s = computeScores({ aircon_main_hall: v('full', 'disputed'), wifi: v(true) }, defs)
-    expect(s.habitability).toBe(6.7)
-    expect(s.coverage_ratio).toBe(0.048)
+  it('冷房があるだけでは「未確認」のまま', () => {
+    expect(computeScores({ aircon_main_hall: v('present') }, defs).display_state).toBe('unknown')
   })
-
-  it('算出根拠を breakdown に残す', () => {
-    const s = computeScores({ aircon_main_hall: v('partial'), wifi: v(true) }, defs)
-    const h = s.breakdown.habitability as { items: Record<string, { score: number | null }>; excluded: string[] }
-    expect(s.breakdown.method_version).toBe('phase4-5')
-    expect(h.items.aircon_main_hall!.score).toBe(0.67)
-    expect(h.items.shower!.score).toBeNull()
-    expect(h.excluded).toContain('elevator')
+  it('命にかかわる設備がすべて確認済みで不足なしなら「概ね良好」。健康などの不足は「要確認」', () => {
+    expect(computeScores(lifeOk(), defs).display_state).toBe('fair')
+    expect(computeScores({ ...lifeOk(), shower: v('none') }, defs).display_state).toBe('poor')
+  })
+  it('全項目が充足なら 4 観点とも充足。道路の点数がなければ「良好」にはしない', () => {
+    const s = computeScores(allOk(), defs)
+    expect(s.impact).toEqual({ life: 'ok', health: 'ok', dignity: 'ok', access: 'ok' })
+    expect(s.display_state).toBe('fair')
+  })
+  it('命にかかわる設備が未確認のまま健康の不足だけ分かっても「要確認」', () => {
+    expect(computeScores({ shower: v('none') }, defs).display_state).toBe('poor')
+  })
+  it('算出根拠を breakdown に残す（項目ごとの状態・季節・出典）', () => {
+    const src = { title: 't', publisher: 'p', url: 'https://example.jp', as_of: '2026-05-01', how: 'h' }
+    const s = computeScores({ aircon_main_hall: { ...v('none', 'official'), source: src } }, defs)
+    const life = (s.breakdown.impact as { perspectives: Record<string, { status: string; items: Record<string, { status: string; season?: string; source?: unknown }> }> }).perspectives.life!
+    expect(s.breakdown.method_version).toBe('impact-1')
+    expect(life.status).toBe('short')
+    expect(life.items.aircon_main_hall).toMatchObject({ status: 'short', season: 'summer', source: src })
+    expect(life.items.water_supply!.status).toBe('unknown')
   })
 })
 
 describe('表示状態', () => {
-  it('回答率 40% 未満は、点数にかかわらず未確認', () => {
-    expect(displayState({ habitability: 10, logistics: null }, 0.39)).toBe('unknown')
+  const all = (x: 'ok' | 'unknown' | 'limited' | 'short') => ({ life: x, health: x, dignity: x, access: x })
+  it('「良好」は 4 観点すべて充足、重なりなし、道路の点数 75 以上の場合だけ', () => {
+    expect(displayState(all('ok'), 80, 'no_overlap_found')).toBe('good')
+    expect(displayState(all('ok'), 70, 'no_overlap_found')).toBe('fair')
+    expect(displayState(all('ok'), 80, 'not_evaluated')).toBe('fair')
+    expect(displayState({ ...all('ok'), access: 'limited' }, 80, 'no_overlap_found')).toBe('fair')
   })
-  it('評価済みの軸で判定する', () => {
-    const ax = (h: number) => ({ habitability: h, logistics: null })
-    expect(displayState(ax(24.9), 0.5)).toBe('critical')
-    expect(displayState(ax(49.9), 0.5)).toBe('poor')
-    expect(displayState(ax(90), 0.5)).toBe('fair')
-  })
-  it('軸D（道路までの距離）が低くても、表示状態は下げない。「良好」にならないだけ', () => {
-    expect(displayState({ habitability: 90, logistics: 10 }, 0.5, 'no_overlap_found')).toBe('fair')
-    expect(displayState({ habitability: 90, logistics: 0 }, 0.5, 'no_overlap_found')).toBe('fair')
-    expect(displayState({ habitability: null, logistics: 10 }, 0.5)).toBe('fair')
-    expect(displayState({ habitability: 40, logistics: 10 }, 0.5)).toBe('poor')
-    expect(displayState({ habitability: 20, logistics: 100 }, 0.5)).toBe('critical')
-  })
-  it('「良好」は軸C・D が 75 以上で、軸A で重なりが見つからなかった場合だけ（軸B は条件にしない）', () => {
-    const ok = { habitability: 80, logistics: 80 }
-    expect(displayState(ok, 0.9, 'no_overlap_found')).toBe('good')
-    expect(displayState(ok, 0.9, 'not_evaluated')).toBe('fair')
-    expect(displayState(ok, 0.9, 'attention')).toBe('critical')
-    expect(displayState({ habitability: 80, logistics: 70 }, 0.9, 'no_overlap_found')).toBe('fair')
-    expect(displayState({ habitability: 80, logistics: null }, 0.9, 'no_overlap_found')).toBe('fair')
+  it('想定区域との重なりは、命にかかわる設備が確認済みのときだけ「要確認（重要）」にする', () => {
+    expect(displayState(all('ok'), 80, 'attention')).toBe('critical')
+    expect(displayState(all('unknown'), null, 'attention')).toBe('unknown')
   })
 })
 
@@ -221,12 +231,9 @@ describe('軸A：想定区域との重なり（点数は出さない）', async 
     ])
     expect(r).toMatchObject({ status: 'attention', overlap: ['flood'], checked: ['flood', 'storm_surge'] })
   })
-  it('軸A の点数は常に null。重なりがあり、設備の回答率が 4 割以上なら「要確認（重要）」', () => {
-    const keys = ['aircon_main_hall', 'heating_main_hall', 'insulation', 'toilet_multipurpose', 'water_supply', 'solar_battery', 'step_free_entry', 'wifi', 'kitchen']
-    const a = Object.fromEntries(keys.map((k) => [k, v(k.endsWith('main_hall') ? 'full' : true)]))
-    const s = computeScores(a, defs, [{ hazards: { ...none, flood: true }, zone: { flood: 'in' } }])
+  it('軸A の点数は常に null。重なりがあり、命にかかわる設備が確認済みなら「要確認（重要）」', () => {
+    const s = computeScores(lifeOk(), defs, [{ hazards: { ...none, flood: true }, zone: { flood: 'in' } }])
     expect(s.hazard).toBeNull()
-    expect(s.habitability).toBe(60)
     expect(s.display_state).toBe('critical')
     expect(computeScores({}, defs, [{ hazards: { ...none, flood: true }, zone: { flood: 'in' } }]).display_state).toBe('unknown')
   })

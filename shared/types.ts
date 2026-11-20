@@ -95,13 +95,31 @@ export interface AmenityValue {
   confidence: 'official' | 'verified' | 'reported' | 'disputed'
   observed_at: string | null
   evidence_count: number
+  /** 公的資料から取り込んだ値の出典（DATA_NOTES 16.4）。市民投稿の確定値には付かない */
+  source?: AmenitySource
 }
+
+/** 公的資料の出典。as_of は資料の時点、how はその値になった理由 */
+export interface AmenitySource {
+  title: string
+  publisher: string
+  url: string
+  as_of: string
+  how: string
+}
+
+/** 設備の影響の観点（DATA_NOTES 16.3） */
+export const IMPACTS = ['life', 'health', 'dignity', 'access'] as const
+export type Impact = (typeof IMPACTS)[number]
+/** 観点ごとの状態：不足が確定／一部／充足／未確認 */
+export type ImpactStatus = 'short' | 'limited' | 'ok' | 'unknown'
 
 export interface Scores {
   hazard: number | null
   capacity: number | null
-  habitability: number | null
   logistics: number | null
+  /** 設備の観点ごとの状態（総合点は作らない） */
+  impact: Record<Impact, ImpactStatus>
   coverage_ratio: number
   display_state: DisplayState
   hazard_check: HazardCheck
