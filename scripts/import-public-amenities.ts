@@ -48,6 +48,27 @@ const SOURCES = {
     url: 'https://www.city.chiba.jp/kankyo/kankyohozen/datsutanso/documents/ichiran.xlsx',
     as_of: '2026-11-20',
   },
+  sapporo_gym_heating: {
+    file: 'sapporo_gym_heating_2012.pdf',
+    title: '第4回札幌市避難場所基本計画検討委員会 資料（第3章 寒さ対策・停電対策「基幹避難所（市立小中学校体育館）の暖房の現状」）',
+    publisher: '札幌市',
+    url: 'https://www.city.sapporo.jp/kikikanri/torikumi/hinanbasho_keikaku/documents/siryou04.pdf',
+    as_of: '2012-11-28',
+  },
+  setagaya_gym_aircon: {
+    file: 'setagaya_gym_aircon_plan_2018.pdf',
+    title: '区立小中学校体育館への空調設備の設置について（冷暖房機能を持つ機器を全 90 校に設置）',
+    publisher: '世田谷区',
+    url: 'https://www.city.setagaya.lg.jp/documents/5560/1811017-1.pdf',
+    as_of: '2018-11-01',
+  },
+  machida_gym_aircon: {
+    file: 'machida_gym_aircon_report_2022.pdf',
+    title: '体育館空調の設置効果について（報告）（市立小中学校全校の体育館に冷暖房の空調設備を設置）',
+    publisher: '町田市教育委員会',
+    url: 'https://www.city.machida.tokyo.jp/kodomo/kyoiku/kaigitou/kaigi/teireikairinjikai/kyoukai/2022kaigiroku/2022kaigiroku05.files/09_.pdf',
+    as_of: '2022-08-01',
+  },
 } as const
 type SourceId = keyof typeof SOURCES
 
@@ -137,6 +158,25 @@ function applyList(source: SourceId, muniKey: string, names: string[], key: stri
   const names = strings.filter((s) => /(学校|公民館|センター|会館)$/.test(s))
   applyList('chiba_solar_battery', '12100', names, 'solar_battery', true, '千葉市の避難所への再生可能エネルギー等導入事業（太陽光発電設備と蓄電池）の導入施設一覧に掲載')
 }
+
+// 3. 暖房：市区町村が「市立小中学校の全校の体育館に暖房（冷暖房の空調）がある」と公表している場合（DATA_NOTES 16.8）
+//    世田谷区・町田市は計画・報告の時点では設置途中の場合があるため、文科省の冷房設置率が 100% であること（全校で設置済み）も条件にする
+function applyMuniStatement(source: SourceId, muniKey: string, how: string, needsMext100: boolean) {
+  const muni = munis.get(muniKey)!
+  let n = 0
+  for (const f of muni.facilities.filter(isMunicipalSchoolShelter)) {
+    if (needsMext100 && values.get(f.id)?.aircon_main_hall?.value !== 'present') continue
+    set(f.id, 'heating_main_hall', { value: 'present', source, how })
+    n++
+  }
+  report[source] = { municipality: muni.muni_name, facilities: n }
+}
+applyMuniStatement('sapporo_gym_heating', '01100',
+  '札幌市の資料に、市立小中学校体育館 300 校の暖房の熱源の内訳（都市ガス 113 校・灯油 95 校・重油 58 校・電気 21 校・LP ガス 9 校ほか）がある。市立の小中学校で指定避難所の施設について、主要な滞在スペースを体育館とみなした。同じ資料は、停電や都市ガスの停止で暖房が使えなくなる想定も示している（都市ガスは復旧まで長期化）', false)
+applyMuniStatement('setagaya_gym_aircon', '13112',
+  '世田谷区は区立小中学校全 90 校の体育館に冷暖房機能を持つ空調機を設置する方針（2018 年）。文部科学省の調査（2026-05-01）で区の体育館等の冷房設置率が 100% のため、設置済みとした。主要な滞在スペースを体育館とみなした', true)
+applyMuniStatement('machida_gym_aircon', '13209',
+  '町田市は 2020〜2021 年度に市立小中学校全校の体育館に、壁輻射パネルと壁掛けエアコンによる冷暖房の空調を設置し、冬季は室温 19℃以下で運転している（2022 年の報告）。主要な滞在スペースを体育館とみなした', true)
 
 // 書き出し。施設 ID の順に並べ、差分を読みやすくする
 const sources: Record<string, AmenitySource & { file: string }> = {}
