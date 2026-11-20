@@ -188,8 +188,8 @@ function SearchBox({ onGo, panelOpen, filtered, onTogglePanel }: { onGo: (lat: n
       setQ(sg.sub + sg.label); setOpen(false); inputRef.current?.blur(); goHit(sg.hit)
       return
     }
-    // 市区町村を選んだら、その中心へ移動し、続けて町名を入力できるようにする
-    setQ(sg.query)
+    // 市区町村を選んだら、その中心へ移動し、続けて町名を入力できるようにする（候補は入力を再開したら出す）
+    setQ(sg.query); setOpen(false)
     const r = await searchAddress(sg.query, index.data!, sg.pref).catch(() => null)
     if (r && (r.status === 'found' || r.status === 'muni_only')) goHit(r.hit)
     inputRef.current?.focus()

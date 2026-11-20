@@ -65,16 +65,21 @@ const stripMuniSuffix = (n: string) => n.replace(/[都道府県市区町村]$/, 
  * 前方一致を先に、次に部分一致。都道府県名だけの入力なら、その都道府県の市区町村を並べる
  */
 export function suggestMunis(input: string, index: MuniIndexFile): Suggestion[] {
-  let q = normalizeAddress(input)
-  if (!q) return []
-  let prefOnly: PrefIndexEntry | undefined
+  const all = normalizeAddress(input)
+  if (!all) return []
   for (const p of index.prefs) {
     for (const n of [p.name, stripPrefSuffix(p.name)]) {
-      if (q.startsWith(n)) { prefOnly = p; q = q.slice(n.length); break }
+      if (!all.startsWith(n)) continue
+      const r = rankMunis(all.slice(n.length), [p])
+      // 「大阪市」「京都市」のように都府県を省いた名前が市名の頭と重なる場合は、市名としても照合する
+      if (r.length > 0 || n === p.name) return r
+      return rankMunis(all, index.prefs)
     }
-    if (prefOnly) break
   }
-  const pool = prefOnly ? [prefOnly] : index.prefs
+  return rankMunis(all, index.prefs)
+}
+
+function rankMunis(q: string, pool: PrefIndexEntry[]): Suggestion[] {
   const scored: { s: number; sg: Suggestion }[] = []
   for (const p of pool) {
     for (const m of p.munis) {
@@ -94,16 +99,16 @@ export function suggestMunis(input: string, index: MuniIndexFile): Suggestion[] 
 
 /** 町名の候補：入力が「市区町村名＋町名の一部」のとき、照合用ファイルからその市区町村の町名を前方一致で出す */
 export function suggestTowns(input: string, pref: PrefIndexEntry, file: GeocodeFile): Suggestion[] {
-  let a = normalizeAddress(input)
+  const raw = normalizeAddress(input)
   const pn = normalizeAddress(file.pref_name)
-  if (a.startsWith(pn)) a = a.slice(pn.length)
-  else if (a.startsWith(stripPrefSuffix(pn))) a = a.slice(stripPrefSuffix(pn).length)
+  // 都道府県名を省いた形も試す（「大阪市」の「大阪」を府名として削らない）
+  const variants = [...new Set([raw.startsWith(pn) ? raw.slice(pn.length) : raw, raw.startsWith(stripPrefSuffix(pn)) ? raw.slice(stripPrefSuffix(pn).length) : raw, raw])]
   const order = file.munis.map((m, i) => ({ m, i })).sort((x, y) => y.m.name.length - x.m.name.length)
   for (const { m, i } of order) {
-    for (const n of [normalizeAddress(m.name), stripGun(normalizeAddress(m.name))]) {
+    for (const [n, a] of [normalizeAddress(m.name), stripGun(normalizeAddress(m.name))].flatMap((n) => variants.map((a) => [n, a] as const))) {
       if (!a.startsWith(n)) continue
       const rest = a.slice(n.length).replace(/^大字/, '').replace(/[-\d].*$/, '')
-      if (!rest) return []
+      if (!rest) return /市.+区$/.test(m.name) ? [{ kind: 'muni', label: m.name, sub: pref.name, pref, query: pref.name + m.name }] : []
       const out: Suggestion[] = []
       for (const t of file.towns) {
         if (t[0] !== i) continue
@@ -115,7 +120,16 @@ export function suggestTowns(input: string, pref: PrefIndexEntry, file: GeocodeF
       return out
     }
   }
-  return []
+  // 政令指定都市の区：「大阪市北」→ 大阪市北区
+  const wards: Suggestion[] = []
+  for (const m of file.munis) {
+    const n = normalizeAddress(m.name)
+    if (variants.some((a) => a && n.length > a.length && n.startsWith(a)) && /市.+区$/.test(m.name)) {
+      wards.push({ kind: 'muni', label: m.name, sub: pref.name, pref, query: pref.name + m.name })
+      if (wards.length >= SUGGEST_LIMIT) break
+    }
+  }
+  return wards
 }
 
 /** 都道府県の照合用ファイルは、一度取得したらこの画面を開いている間は使い回す */

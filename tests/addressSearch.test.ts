@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { resolvePrefs } from '../src/lib/addressSearch.ts'
+import { resolvePrefs, suggestMunis, suggestTowns } from '../src/lib/addressSearch.ts'
+import type { GeocodeFile } from '../shared/geocode.ts'
 import type { MuniIndexFile } from '../shared/types.ts'
 
 const index: MuniIndexFile = {
@@ -33,5 +34,26 @@ describe('suggestMunis', () => {
     expect(suggestMunis('江東', index).map((s) => s.label)).toEqual(['江東区'])
     expect(suggestMunis('浜', index).map((s) => s.label)).toEqual(['横浜市'])
     expect(suggestMunis('東京都', index).map((s) => s.label)).toEqual(['江東区', '府中市'])
+  })
+})
+
+describe('政令指定都市', () => {
+  const idx = {
+    prefs: [
+      { code: '26', name: '京都府', munis: [{ key: '26100', name: '京都市' }, { key: '26201', name: '福知山市' }] },
+      { code: '27', name: '大阪府', munis: [{ key: '27100', name: '大阪市' }, { key: '27140', name: '堺市' }] },
+    ],
+  } as unknown as MuniIndexFile
+  it('都府県を省いた名前と市名が重なっても市の候補を出す', () => {
+    expect(suggestMunis('大阪市北', idx).map((s) => s.label)).toEqual(['大阪市'])
+    expect(suggestMunis('京都市', idx).map((s) => s.label)).toEqual(['京都市'])
+    expect(suggestMunis('大阪府堺', idx).map((s) => s.label)).toEqual(['堺市'])
+  })
+  it('区の候補を出す', () => {
+    const file = { pref_name: '大阪府', munis: [{ name: '大阪市北区' }, { name: '大阪市都島区' }, { name: '堺市北区' }], towns: [] } as unknown as GeocodeFile
+    const pref = idx.prefs[1]!
+    expect(suggestTowns('大阪市北', pref, file).map((s) => s.label)).toEqual(['大阪市北区'])
+    expect(suggestTowns('大阪市北区', pref, file).map((s) => s.label)).toEqual(['大阪市北区'])
+    expect(suggestTowns('大阪市', pref, file).map((s) => s.label)).toEqual(['大阪市北区', '大阪市都島区'])
   })
 })
