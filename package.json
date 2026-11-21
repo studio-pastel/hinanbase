@@ -27,7 +27,8 @@
     "data:geocode": "tsx scripts/build-geocode.ts",
     "data:points": "tsx scripts/build-points.ts",
     "data:depth": "tsx scripts/build-depth.ts",
-    "data:public-amenities": "tsx scripts/import-public-amenities.ts"
+    "data:public-amenities": "tsx scripts/import-public-amenities.ts",
+    "data:inquiry-targets": "tsx scripts/build-inquiry-targets.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",
