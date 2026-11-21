@@ -9,7 +9,7 @@ export interface MuniName { name: string; key: string }
 export const stripGun = (name: string) => (/[町村]$/.test(name) ? name.replace(/^.+?郡(?=.+[町村]$)/, '') : name)
 
 /** ヶ・ケ・ヵ、旧字体の揺れを揃える（資料ごとに表記が違うため） */
-export const normKana = (s: string) => s.normalize('NFKC').replace(/[ヶヵケ]/g, 'ケ').replace(/[檮梼]/g, '梼').replace(/[𥔎﨑]/g, '崎')
+export const normKana = (s: string) => s.normalize('NFKC').replace(/[ヶヵケ]/g, 'ケ').replace(/[檮梼]/g, '梼').replace(/[𥔎﨑]/gu, '崎')
 
 /** 住所照合用データの市区町村（政令指定都市の区は市にまとめる）。郡名は外す */
 export function muniNamesFromGeocode(munis: { code: string; name: string; key: string }[]): MuniName[] {
