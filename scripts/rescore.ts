@@ -8,6 +8,7 @@ import { DISPLAY_STATES, HAZARD_KEYS, type AmenityValue, type MuniFile, type Mun
 import { hazardMask, isRestrictedOnly, kindFlags } from './lib/facility.ts'
 import { BUILD_DIR, FACILITIES_NDJSON, INTERMEDIATE_DIR } from './lib/paths.ts'
 import { tileProps } from './lib/tileProps.ts'
+import type { InquiryLogFile, InquiryValuesFile } from '../shared/inquiry.ts'
 
 export const DERIVED_REPORT = join(INTERMEDIATE_DIR, 'derived-report.json')
 const defs = amenityDefs.amenities as unknown as ScoringDef[]
@@ -64,6 +65,40 @@ if (process.env.RESCORE_FIXTURE) {
     if (page.length < 1000) break
   }
   console.log(`確定設備値: ${rows} 件（${amenities.size} 施設）`)
+}
+
+// 2a) 自治体への照会の回答から作った値（data/inquiry/values/*.json、docs/INQUIRY.md）。
+//     市民投稿の確定値があればそちらを優先し、統計から決めた公的資料の値（2b）よりは優先する（施設ごとの回答のため）
+const INQUIRY_DIR = join(import.meta.dirname, '..', 'data', 'inquiry')
+let inquiryCount = 0
+if (existsSync(join(INQUIRY_DIR, 'values'))) {
+  const log = JSON.parse(readFileSync(join(INQUIRY_DIR, 'log.json'), 'utf8')) as InquiryLogFile
+  for (const file of readdirSync(join(INQUIRY_DIR, 'values')).filter((f) => f.endsWith('.json'))) {
+    const v = JSON.parse(readFileSync(join(INQUIRY_DIR, 'values', file), 'utf8')) as InquiryValuesFile
+    const muni = log.munis[v.muni_key]
+    const ev = muni?.events.find((e) => e.id === v.event_id)
+    // 記録にない回答の値は載せない（出典をたどれないため）
+    if (!muni || !ev) throw new Error(`${file}: 照会の記録に ${v.event_id} がありません`)
+    for (const [id, items] of Object.entries(v.values)) {
+      const a = amenities.get(id) ?? {}
+      for (const [key, e] of Object.entries(items)) {
+        if (a[key]) continue
+        a[key] = {
+          value: e.value, confidence: 'official', observed_at: ev.date, evidence_count: 0,
+          source: {
+            title: `照会への回答（${ev.date}）${ev.files?.length ? `：${ev.files.map((f) => f.name).join('、')}` : ''}`,
+            publisher: muni.name,
+            url: ev.files?.find((f) => f.url)?.url ?? `https://hinanbase.pages.dev/inquiries#${v.muni_key}`,
+            as_of: ev.date,
+            how: e.how,
+          },
+        }
+        inquiryCount++
+      }
+      amenities.set(id, a)
+    }
+  }
+  console.log(`照会の回答から取り込んだ設備値: ${inquiryCount} 件`)
 }
 
 // 2b) 公的資料から取り込んだ値（data/public/amenities.json、DATA_NOTES 16）。市民投稿の確定値があれば、そちらを優先する

@@ -223,6 +223,23 @@ export const ja = {
     notFound: 'この施設は見つかりませんでした。',
   },
 
+  inquiry: {
+    title: '照会の記録',
+    link: '自治体への照会の記録を見る',
+    intro: '公開されている資料では、避難所ごとの暖房・非常用電源・断水時のトイレなどがほとんど分かりません。そこで、冬の災害で命にかかわる設備について、自治体に既存の資料の写しをお願いしています。ここには、いつ・何をお願いし・どのような回答があったかを、事実だけ記録します。自治体を比べる順位や点数ではありません。',
+    conditionTitle: '照会先の選び方',
+    condition: (c: Record<string, number>) => `2014 年度以降に災害救助法の適用を受けた年が ${c.relief_years_min} 年以上、指定避難所の地点の 1 月の最低気温（平年値）が ${c.jan_min_max}℃以下、80 歳以上の人の割合が ${c.r80_min}% 以上の市町村です。`,
+    conditionSource: '出典：内閣府「災害救助法の適用状況」、国土数値情報「平年値メッシュ」（気象庁 メッシュ平年値2020）を加工して作成（非商用）、総務省「住民基本台帳年齢階級別人口」',
+    asked: '依頼している内容：体育館など主に滞在する場所の暖房（方式・熱源・停電時に使えるか）、非常用電源、断水時のトイレ、簡易ベッド、給水設備が分かる既存の資料。資料がないという回答も記録します。',
+    status: { not_sent: 'まだ照会していない', sent: '照会済み・回答待ち', answered: '回答あり', no_document: '資料なしとの回答', declined: '回答できないとの回答', disclosure: '情報公開請求中' } as Record<string, string>,
+    eventType: { sent: '照会', reminder: '催促', response: '回答', no_document: '資料なしとの回答', declined: '回答できないとの回答', disclosure_request: '情報公開請求', disclosure_decision: '開示決定', note: 'メモ' } as Record<string, string>,
+    channel: { email: 'メール', form: '問い合わせフォーム', phone: '電話', post: '郵送', counter: '窓口', other: 'その他' } as Record<string, string>,
+    valuesCount: (n: number) => `回答から設備の情報が分かった施設：${n} 件`,
+    noEvents: 'まだ記録はありません。',
+    muniSection: 'この市町村への照会',
+    targetNote: '照会先の候補（上の条件に当てはまる市町村）',
+  },
+
   list: {
     title: '一覧から探す',
     intro: '地方、都道府県、市区町村の順にたどって施設を探せます。',

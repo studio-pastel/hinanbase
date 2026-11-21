@@ -1,7 +1,8 @@
 // 全国集計・市区町村の索引・meta.json を生成する（SPEC §2.4、§5.6）
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import amenityDefs from '../config/amenity-defs.json' with { type: 'json' }
+import { INQUIRY_STATUSES, inquiryStatus, validateInquiryLog, type InquiryLogFile, type InquirySummaryFile, type InquiryValuesFile } from '../shared/inquiry.ts'
 import type { Meta, MuniIndexFile, NationalSummary, PrefIndexEntry } from '../shared/types.ts'
 import { BUILD_DIR, BUILD_REPORT } from './lib/paths.ts'
 
@@ -42,6 +43,40 @@ const muniIndex: MuniIndexFile = {
   prefs: [...prefs.values()].sort((a, b) => a.code.localeCompare(b.code)),
 }
 writeFileSync(join(summaryDir, 'munis.json'), JSON.stringify(muniIndex))
+
+// 照会の記録（docs/INQUIRY.md）。記録の検査に通らなければ止める。照会先の一覧と記録を合わせて公開用にまとめる（順位・点数は付けない）
+{
+  const dir = join(import.meta.dirname, '..', 'data', 'inquiry')
+  const logPath = join(dir, 'log.json')
+  const targetsPath = join(dir, 'targets.json')
+  if (existsSync(logPath) && existsSync(targetsPath)) {
+    const log = JSON.parse(readFileSync(logPath, 'utf8')) as InquiryLogFile
+    const errors = validateInquiryLog(log, new Set(muniIndex.prefs.flatMap((p) => p.munis.map((m) => m.key))))
+    if (errors.length) throw new Error(`照会の記録に誤りがあります：\n${errors.join('\n')}`)
+    const t = JSON.parse(readFileSync(targetsPath, 'utf8')) as { condition: Record<string, number>; targets: { key: string; pref: string; name: string }[] }
+    const withValues = new Map<string, number>()
+    if (existsSync(join(dir, 'values'))) {
+      for (const f of readdirSync(join(dir, 'values')).filter((x) => x.endsWith('.json'))) {
+        const v = JSON.parse(readFileSync(join(dir, 'values', f), 'utf8')) as InquiryValuesFile
+        withValues.set(v.muni_key, (withValues.get(v.muni_key) ?? 0) + Object.keys(v.values).length)
+      }
+    }
+    const names = new Map(muniIndex.prefs.flatMap((p) => p.munis.map((m) => [m.key, { pref: p.name, name: m.name }] as const)))
+    const keys = [...new Set([...t.targets.map((x) => x.key), ...Object.keys(log.munis)])].sort()
+    const targetSet = new Set(t.targets.map((x) => x.key))
+    const munis = keys.map((key) => {
+      const events = log.munis[key]?.events ?? []
+      return {
+        key, pref: names.get(key)?.pref ?? '', name: names.get(key)?.name ?? '', target: targetSet.has(key),
+        status: inquiryStatus(events), events: events.map((e) => { const { id, ...rest } = e; void id; return rest }), facilities_with_values: withValues.get(key) ?? 0,
+      }
+    })
+    const counts = Object.fromEntries(INQUIRY_STATUSES.map((s) => [s, munis.filter((m) => m.status === s).length])) as InquirySummaryFile['counts']
+    const summary: InquirySummaryFile = { generated_at: generatedAt, condition: t.condition, counts, munis }
+    writeFileSync(join(summaryDir, 'inquiries.json'), JSON.stringify(summary))
+    console.log(`照会の記録：${munis.length} 市区町村`, counts)
+  }
+}
 
 // meta.json：元データ由来の項目（取得日・行数・統合の内訳）は、取り込み時の報告があればそこから、
 // なければ（日次ビルド）既存の meta.json から引き継ぐ

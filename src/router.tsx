@@ -4,6 +4,7 @@ import { ja } from './i18n/ja.ts'
 import { FacilityPage } from './routes/FacilityPage.tsx'
 import { FacilityAdminApplyPage, RemovalRequestPage } from './routes/FormsPage.tsx'
 import { ListFacilitiesPage, ListMunisPage, ListPrefsPage } from './routes/ListPage.tsx'
+import { InquiryPage } from './routes/InquiryPage.tsx'
 import { MapPage } from './routes/MapPage.tsx'
 import { NearPage } from './routes/NearPage.tsx'
 import { ModerationPage } from './routes/ModerationPage.tsx'
@@ -29,6 +30,7 @@ const routeTree = rootRoute.addChildren([
   createRoute({ getParentRoute: () => rootRoute, path: '/list', component: ListPrefsPage }),
   createRoute({ getParentRoute: () => rootRoute, path: '/list/$prefCode', component: ListMunisPage }),
   createRoute({ getParentRoute: () => rootRoute, path: '/list/$prefCode/$muniKey', component: ListFacilitiesPage }),
+  createRoute({ getParentRoute: () => rootRoute, path: '/inquiries', component: InquiryPage }),
 ])
 
 export const router = createRouter({ routeTree, defaultPreload: 'intent' })

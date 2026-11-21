@@ -28,7 +28,8 @@
     "data:points": "tsx scripts/build-points.ts",
     "data:depth": "tsx scripts/build-depth.ts",
     "data:public-amenities": "tsx scripts/import-public-amenities.ts",
-    "data:inquiry-targets": "tsx scripts/build-inquiry-targets.ts"
+    "data:inquiry-targets": "tsx scripts/build-inquiry-targets.ts",
+    "inquiry": "tsx scripts/inquiry.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",

@@ -1,6 +1,7 @@
 // 静的データ（R2 またはローカル配信）の取得。地図・詳細表示は Supabase を読まない（CLAUDE.md）
 import { useQuery } from '@tanstack/react-query'
 import type { GeocodeFile, PointRow } from '../../shared/geocode.ts'
+import type { InquirySummaryFile } from '../../shared/inquiry.ts'
 import type { EvacueeEstimates, Meta, MuniFile, MuniIndexFile, NationalSummary } from '../../shared/types.ts'
 
 export const DATA_BASE_URL = (import.meta.env.VITE_DATA_BASE_URL ?? '').replace(/\/+$/, '')
@@ -21,6 +22,9 @@ export const useMuniIndex = () =>
   useQuery({ queryKey: ['munis'], queryFn: () => getJson<MuniIndexFile>('/summary/munis.json'), staleTime: STALE })
 export const useEvacueeEstimates = () =>
   useQuery({ queryKey: ['evacuees'], queryFn: () => getJson<EvacueeEstimates>('/summary/evacuee-estimates.json'), staleTime: STALE, retry: 1 })
+/** 照会の記録（docs/INQUIRY.md）。まだ公開していない環境では空として扱う */
+export const useInquiries = () =>
+  useQuery({ queryKey: ['inquiries'], queryFn: () => getJson<InquirySummaryFile>('/summary/inquiries.json'), staleTime: STALE, retry: 1 })
 /** 住所照合用ファイル（都道府県単位）。取得するのは都道府県のファイルだけで、住所は送らない（SPEC §6.6） */
 export const fetchGeocode = (prefCode: string) => getJson<GeocodeFile>(`/geocode/${encodeURIComponent(prefCode)}.json`)
 

@@ -4,6 +4,7 @@ import { Status } from '../components/Layout.tsx'
 import { StateLabel } from '../components/StateMark.tsx'
 import { fmt, ja } from '../i18n/ja.ts'
 import { useEvacueeEstimates, useMuni, useMuniIndex } from '../lib/data.ts'
+import { MuniInquirySection } from './InquiryPage.tsx'
 
 /** 地方区分（都道府県コード） */
 const REGIONS: { name: string; codes: number[] }[] = [
@@ -32,6 +33,7 @@ export function ListPrefsPage() {
   return (
     <Shell title={ja.list.title} crumbs={<span aria-current="page">{ja.list.top}</span>}>
       <p className="text-base text-ink-soft">{ja.list.intro}</p>
+      <p className="m-0 mb-2 text-base"><Link to="/inquiries">{ja.inquiry.link}</Link></p>
       <Status loading={index.isLoading} error={index.isError} />
       {index.data && (
         // まず地方で分け、開いた地方の都道府県を出す（スマホで 47 件を一度に並べない）
@@ -136,6 +138,7 @@ export function ListFacilitiesPage() {
         <>
           <p className="m-0 mt-2 text-base text-ink-soft">{fmt.format(d.facilities.length)} {ja.unitFacilities}</p>
           <EvacueeEstimate prefCode={prefCode} muniKey={muniKey} />
+          <MuniInquirySection muniKey={muniKey} />
           {overlapCount > 0 && (
             <div className="mt-2 rounded border border-line bg-surface p-3 text-base">
               <p className="m-0">{ja.list.overlapCount(overlapCount)}</p>
