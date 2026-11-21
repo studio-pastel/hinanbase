@@ -9,9 +9,10 @@
 // 種類：sent（送付）reminder（催促）response（回答）no_document（資料なしの回答）declined（回答できないとの回答）
 //       disclosure_request（情報公開請求）disclosure_decision（開示決定）note（その他）
 // 方法：email form phone post counter other
+// 日付は実際に送った・届いた日（日本時間）。--date を省くと今日になる。今日より後の日付は受け付けない。
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { daysSinceSent, INQUIRY_CHANNELS, INQUIRY_EVENT_TYPES, inquiryStatus, validateInquiryLog, type InquiryChannel, type InquiryEvent, type InquiryEventType, type InquiryLogFile } from '../shared/inquiry.ts'
+import { daysSinceSent, INQUIRY_CHANNELS, INQUIRY_EVENT_TYPES, inquiryStatus, todayJst, validateInquiryLog, type InquiryChannel, type InquiryEvent, type InquiryEventType, type InquiryLogFile } from '../shared/inquiry.ts'
 import type { MuniIndexFile } from '../shared/types.ts'
 import { BUILD_DIR, ROOT } from './lib/paths.ts'
 
@@ -52,7 +53,7 @@ if (cmd === 'add') {
   if (!key || !/^\d{5}$/.test(key)) throw new Error('市区町村キー（5 桁）を指定してください')
   if (!names.has(key)) throw new Error(`${key} は施設データにない市区町村です`)
   if (!INQUIRY_EVENT_TYPES.includes(type)) throw new Error(`種類は ${INQUIRY_EVENT_TYPES.join(' / ')} のどれか`)
-  const date = arg('date') ?? new Date().toISOString().slice(0, 10)
+  const date = arg('date') ?? todayJst()
   const channel = arg('channel') as InquiryChannel | undefined
   if (channel && !INQUIRY_CHANNELS.includes(channel)) throw new Error(`方法は ${INQUIRY_CHANNELS.join(' / ')} のどれか`)
   const log = loadLog()
@@ -66,7 +67,7 @@ if (cmd === 'add') {
   if (files.length) e.files = files
   m.events.push(e)
   m.events.sort((a, b) => a.date.localeCompare(b.date) || Number(a.id.split('-')[1]) - Number(b.id.split('-')[1]))
-  const errors = validateInquiryLog(log, new Set(names.keys()))
+  const errors = validateInquiryLog(log, new Set(names.keys()), todayJst())
   if (errors.length) throw new Error(errors.join('\n'))
   log.munis = Object.fromEntries(Object.entries(log.munis).sort(([a], [b]) => a.localeCompare(b)))
   writeFileSync(LOG_PATH, JSON.stringify(log, null, 1) + '\n')
@@ -76,7 +77,7 @@ if (cmd === 'add') {
   const targets = existsSync(TARGETS_PATH) ? (JSON.parse(readFileSync(TARGETS_PATH, 'utf8')) as { targets: { key: string }[] }).targets.map((t) => t.key) : []
   const keys = [...new Set([...targets, ...Object.keys(log.munis)])]
   const counts: Record<string, number> = {}
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayJst()
   const remind: string[] = []
   for (const k of keys) {
     const ev = log.munis[k]?.events ?? []
@@ -88,7 +89,7 @@ if (cmd === 'add') {
   console.log('状況：', counts)
   console.log(remind.length ? `催促の目安（30 日以上・回答なし・未催促）：\n  ${remind.join('\n  ')}` : '催促の目安に当たる市町村はありません')
 } else if (cmd === 'check') {
-  const errors = validateInquiryLog(loadLog(), new Set(names.keys()))
+  const errors = validateInquiryLog(loadLog(), new Set(names.keys()), todayJst())
   if (errors.length) { console.error(errors.join('\n')); process.exit(1) }
   console.log('照会の記録：問題なし')
 } else {

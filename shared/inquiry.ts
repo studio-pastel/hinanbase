@@ -56,8 +56,13 @@ export function daysSinceSent(events: InquiryEvent[], today: string): number | n
   return Math.floor((Date.parse(today) - Date.parse(sent)) / 86400000)
 }
 
-/** 記録の検査。誤りがあれば文で返す（日次ビルドの前に止めるため） */
-export function validateInquiryLog(log: InquiryLogFile, knownMunis: Set<string>): string[] {
+/** 日本時間の今日（YYYY-MM-DD）。日次ビルドは UTC で動くため、日本時間に合わせる */
+export function todayJst(now = Date.now()): string {
+  return new Date(now + 9 * 3600000).toISOString().slice(0, 10)
+}
+
+/** 記録の検査。誤りがあれば文で返す（日次ビルドの前に止めるため）。today は日本時間の今日（todayJst()） */
+export function validateInquiryLog(log: InquiryLogFile, knownMunis: Set<string>, today: string): string[] {
   const errors: string[] = []
   const ids = new Set<string>()
   for (const [key, m] of Object.entries(log.munis)) {
@@ -67,6 +72,7 @@ export function validateInquiryLog(log: InquiryLogFile, knownMunis: Set<string>)
       ids.add(e.id)
       if (!e.id.startsWith(`${key}-`)) errors.push(`${e.id}: ID は「${key}-連番」の形にする`)
       if (!/^\d{4}-\d{2}-\d{2}$/.test(e.date) || Number.isNaN(Date.parse(e.date))) errors.push(`${e.id}: 日付が YYYY-MM-DD でない`)
+      else if (e.date > today) errors.push(`${e.id}: 日付（${e.date}）が今日（${today}）より後になっている`)
       if (!INQUIRY_EVENT_TYPES.includes(e.type)) errors.push(`${e.id}: 種類が不明（${String(e.type)}）`)
       if (e.channel && !INQUIRY_CHANNELS.includes(e.channel)) errors.push(`${e.id}: 方法が不明（${String(e.channel)}）`)
       for (const f of e.files ?? []) if (f.url && !/^https?:\/\//.test(f.url)) errors.push(`${e.id}: 資料の URL が不正`)

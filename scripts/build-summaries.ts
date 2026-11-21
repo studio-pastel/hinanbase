@@ -2,7 +2,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import amenityDefs from '../config/amenity-defs.json' with { type: 'json' }
-import { INQUIRY_STATUSES, inquiryStatus, validateInquiryLog, type InquiryLogFile, type InquirySummaryFile, type InquiryValuesFile } from '../shared/inquiry.ts'
+import { INQUIRY_STATUSES, inquiryStatus, todayJst, validateInquiryLog, type InquiryLogFile, type InquirySummaryFile, type InquiryValuesFile } from '../shared/inquiry.ts'
 import type { Meta, MuniIndexFile, NationalSummary, PrefIndexEntry } from '../shared/types.ts'
 import { BUILD_DIR, BUILD_REPORT } from './lib/paths.ts'
 
@@ -51,7 +51,7 @@ writeFileSync(join(summaryDir, 'munis.json'), JSON.stringify(muniIndex))
   const targetsPath = join(dir, 'targets.json')
   if (existsSync(logPath) && existsSync(targetsPath)) {
     const log = JSON.parse(readFileSync(logPath, 'utf8')) as InquiryLogFile
-    const errors = validateInquiryLog(log, new Set(muniIndex.prefs.flatMap((p) => p.munis.map((m) => m.key))))
+    const errors = validateInquiryLog(log, new Set(muniIndex.prefs.flatMap((p) => p.munis.map((m) => m.key))), todayJst())
     if (errors.length) throw new Error(`照会の記録に誤りがあります：\n${errors.join('\n')}`)
     const t = JSON.parse(readFileSync(targetsPath, 'utf8')) as { condition: Record<string, number>; targets: { key: string; pref: string; name: string }[] }
     const withValues = new Map<string, number>()
