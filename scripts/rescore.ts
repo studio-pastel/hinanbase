@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join } from 'node:path'
 import amenityDefs from '../config/amenity-defs.json' with { type: 'json' }
 import { axisKey, compactBreakdown, computeScores, type ScoringDef } from '../shared/score.ts'
-import { DISPLAY_STATES, HAZARD_KEYS, type AmenityValue, type MuniFile, type MuniIndexFile } from '../shared/types.ts'
+import { DISPLAY_STATES, HAZARD_KEYS, type AmenityValue, type MuniFile, type MuniIndexFile, type StockpileBlock, type StockpileSource } from '../shared/types.ts'
 import { hazardMask, isRestrictedOnly, kindFlags } from './lib/facility.ts'
 import { BUILD_DIR, FACILITIES_NDJSON, INTERMEDIATE_DIR } from './lib/paths.ts'
 import { tileProps } from './lib/tileProps.ts'
@@ -125,6 +125,30 @@ if (existsSync(PUBLIC_AMENITIES)) {
   console.log(`公的資料から取り込んだ設備値: ${publicCount} 件`)
 }
 
+// 2c) 備蓄の数（data/public/stockpile.json、DATA_NOTES 18・19）。市区町村全体の数と、避難所ごとの数
+const STOCKPILE = join(import.meta.dirname, '..', 'data', 'public', 'stockpile.json')
+const stockpile = existsSync(STOCKPILE)
+  ? (JSON.parse(readFileSync(STOCKPILE, 'utf8')) as {
+    sources: Record<string, StockpileSource & { units: Record<string, string> }>
+    munis: Record<string, Record<string, number>>
+    facilities: Record<string, { list_name: string; list_capacity: number | null; values: Record<string, number | string> }[]>
+  })
+  : null
+const stockSource = (id: string): { source: StockpileSource; units: Record<string, string> } => {
+  const { units, ...rest } = stockpile!.sources[id]!
+  const { file: _file, ...source } = rest as StockpileSource & { file?: string }
+  void _file
+  return { source, units }
+}
+const muniStockpile = (key: string): StockpileBlock | undefined => {
+  const v = stockpile?.munis[key]
+  return v ? { ...stockSource('cao'), values: v } : undefined
+}
+const facilityStockpile = (id: string): StockpileBlock[] | undefined => {
+  const es = stockpile?.facilities[id]
+  return es ? es.map((e) => ({ ...stockSource('tokushima'), values: e.values, list_name: e.list_name, list_capacity: e.list_capacity })) : undefined
+}
+
 // 3) 設備値を載せて算出し直す。内容が変わった市区町村だけ書き出す
 const now = new Date().toISOString()
 const ndjson: string[] = []
@@ -146,6 +170,11 @@ for (const file of readdirSync(muniDir).sort()) {
   const path = join(muniDir, file)
   const muni = JSON.parse(readFileSync(path, 'utf8')) as MuniFile
   let changed = false
+  const ms0 = muniStockpile(muni.muni_key)
+  if (JSON.stringify(muni.stockpile) !== JSON.stringify(ms0)) {
+    if (ms0) muni.stockpile = ms0; else delete muni.stockpile
+    changed = true
+  }
   // 多くの施設で同じになる文章は、市区町村ごとの表に 1 回だけ置く（データを小さくするため。内容は落とさない）
   const texts: unknown[] = []
   const textIndex = new Map<string, number>()
@@ -166,6 +195,11 @@ for (const file of readdirSync(muniDir).sort()) {
     if (amenities.has(f.id)) used.add(f.id)
     const full = fullScores[i]!
     const scores = { ...full, breakdown: compactBreakdown(full.breakdown, texts, textIndex, shared) }
+    const fs = facilityStockpile(f.id)
+    if (JSON.stringify(f.stockpile) !== JSON.stringify(fs)) {
+      if (fs) f.stockpile = fs; else delete f.stockpile
+      changed = true
+    }
     if (JSON.stringify(f.amenities) !== JSON.stringify(next) || JSON.stringify(f.scores) !== JSON.stringify(scores)) {
       f.amenities = next
       f.scores = scores

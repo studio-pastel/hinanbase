@@ -1,0 +1,65 @@
+{
+ "version": 1,
+ "note": "備蓄の数の項目（DATA_NOTES 18・19）。画面はこの定義から作る。cao は内閣府の調査の列の名前、tokushima は徳島県の表の列の見出しに当てる正規表現（NFKC で揃えてから当てる）。単位は資料ごとに違うので、データの側に持つ",
+ "groups": [
+  { "key": "heat", "label_ja": "暖房" },
+  { "key": "cool", "label_ja": "冷房・送風" },
+  { "key": "toilet", "label_ja": "トイレ" },
+  { "key": "sleep", "label_ja": "寝床・毛布" },
+  { "key": "privacy", "label_ja": "間仕切り" },
+  { "key": "power", "label_ja": "電源・通信" },
+  { "key": "water", "label_ja": "水・入浴" },
+  { "key": "care", "label_ja": "衛生・乳幼児・介護" }
+ ],
+ "items": [
+  { "key": "stove_kerosene", "group": "heat", "label_ja": "石油ストーブ", "cao": "ストーブ（石油）" },
+  { "key": "stove_electric", "group": "heat", "label_ja": "電気ストーブ", "cao": "ストーブ（電気）" },
+  { "key": "jet_heater", "group": "heat", "label_ja": "ジェットヒーター", "cao": "ジェットヒーター" },
+  { "key": "heater_portable", "group": "heat", "label_ja": "暖房機器（持ち運べるもの）", "tokushima": "暖房機器" },
+
+  { "key": "aircon_fixed", "group": "cool", "label_ja": "エアコン設備（備え付け）", "tokushima": "エアコン設備|^設備\\(固定式\\)" },
+  { "key": "aircon_unit", "group": "cool", "label_ja": "エアコン（備蓄品）", "cao": "エアコン" },
+  { "key": "spot_cooler", "group": "cool", "label_ja": "スポットクーラー", "cao": "スポットクーラー" },
+  { "key": "fan", "group": "cool", "label_ja": "扇風機", "cao": "扇風機" },
+  { "key": "blower_portable", "group": "cool", "label_ja": "送風機器（持ち運べるもの）", "tokushima": "送風機器" },
+
+  { "key": "toilet_portable", "group": "toilet", "label_ja": "携帯トイレ", "cao": "携帯トイレ", "tokushima": "携帯トイレ" },
+  { "key": "toilet_simple", "group": "toilet", "label_ja": "簡易トイレ", "cao": "簡易トイレ", "tokushima": "簡易トイレ" },
+  { "key": "toilet_temporary", "group": "toilet", "label_ja": "仮設トイレ", "cao": "仮設トイレ", "tokushima": "仮設トイレ$" },
+  { "key": "toilet_assembly", "group": "toilet", "label_ja": "組立トイレ（便槽型）", "cao": "組立トイレ（便槽型）", "tokushima": "組立トイレ" },
+  { "key": "toilet_manhole", "group": "toilet", "label_ja": "マンホールトイレ", "cao": "マンホールトイレ", "tokushima": "マンホール" },
+  { "key": "toilet_ostomate", "group": "toilet", "label_ja": "オストメイト対応トイレ", "tokushima": "オストメイト" },
+  { "key": "toilet_car", "group": "toilet", "label_ja": "トイレカー", "cao": "トイレカー" },
+  { "key": "toilet_trailer", "group": "toilet", "label_ja": "トイレトレーラー", "cao": "トイレトレーラー" },
+  { "key": "toilet_container", "group": "toilet", "label_ja": "トイレコンテナ", "cao": "トイレコンテナ" },
+  { "key": "toilet_western_attachment", "group": "toilet", "label_ja": "トイレを洋式にするアタッチメント", "cao": "トイレ用洋式化アタッチメント" },
+
+  { "key": "cardboard_bed", "group": "sleep", "label_ja": "段ボールベッド", "cao": "段ボールベッド", "tokushima": "段ボールベッド" },
+  { "key": "simple_bed", "group": "sleep", "label_ja": "簡易ベッド", "cao": "簡易ベッド", "tokushima": "簡易ベッド" },
+  { "key": "blanket", "group": "sleep", "label_ja": "毛布", "cao": "毛布", "tokushima": "毛布" },
+  { "key": "futon", "group": "sleep", "label_ja": "布団", "tokushima": "布団" },
+  { "key": "alumi_blanket", "group": "sleep", "label_ja": "アルミブランケット", "tokushima": "アルミ" },
+
+  { "key": "partition", "group": "privacy", "label_ja": "パーティション", "cao": "パーティション", "tokushima": "パーティション" },
+  { "key": "partition_cardboard", "group": "privacy", "label_ja": "段ボールの間仕切り", "tokushima": "段ボール\\(間仕切り\\)" },
+  { "key": "tent", "group": "privacy", "label_ja": "テント", "tokushima": "テント$" },
+
+  { "key": "generator", "group": "power", "label_ja": "発電機", "tokushima": "発電機" },
+  { "key": "battery", "group": "power", "label_ja": "蓄電池（ソーラーパネルを含む）", "tokushima": "蓄電池" },
+  { "key": "satellite_comm", "group": "power", "label_ja": "衛星通信機器（スターリンク）", "tokushima": "スターリンク" },
+  { "key": "radio", "group": "power", "label_ja": "ラジオ", "tokushima": "ラジオ" },
+
+  { "key": "water_500ml", "group": "water", "label_ja": "水（500ml）", "cao": "水（500ml）" },
+  { "key": "water_1l", "group": "water", "label_ja": "水（1L）", "cao": "水（１リットル）" },
+  { "key": "water_2l", "group": "water", "label_ja": "水（2L）", "cao": "水（２リットル）" },
+  { "key": "water_liters", "group": "water", "label_ja": "飲料水", "tokushima": "^(飲料)?水$" },
+  { "key": "water_purifier", "group": "water", "label_ja": "浄水装置", "tokushima": "浄水" },
+  { "key": "bath", "group": "water", "label_ja": "入浴設備（WOTA など）", "tokushima": "入浴設備" },
+
+  { "key": "sanitary", "group": "care", "label_ja": "生理用品", "cao": "生理用品", "tokushima": "生理用ナプキン" },
+  { "key": "diaper_adult", "group": "care", "label_ja": "大人用紙おむつ", "cao": "大人用紙おむつ", "tokushima": "大人用おむつ" },
+  { "key": "diaper_child", "group": "care", "label_ja": "子ども用紙おむつ", "cao": "子供用紙おむつ", "tokushima": "子供用おむつ" },
+  { "key": "baby_milk", "group": "care", "label_ja": "乳幼児用ミルク", "cao": "乳幼児粉ミルク・乳幼児液体ミルク", "tokushima": "乳児用ミルク" },
+  { "key": "care_food", "group": "care", "label_ja": "介護食品", "tokushima": "介護食品" }
+ ]
+}

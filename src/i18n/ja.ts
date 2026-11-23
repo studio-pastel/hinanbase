@@ -223,6 +223,18 @@ export const ja = {
     notFound: 'この施設は見つかりませんでした。',
   },
 
+  stockpile: {
+    muniTitle: '市区町村全体の備蓄',
+    muniNote: '市区町村が倉庫などに備蓄している数の合計です。どの避難所に置かれているかは分かりません。',
+    shelterCount: (n: number) => `この市区町村の指定避難所は ${fmt.format(n)} か所です。`,
+    facilityTitle: 'この避難所の備蓄',
+    listRow: (name: string, cap: number | null) => `一覧の名称：${name}${cap !== null ? `（想定収容人数 ${fmt.format(cap)} 人）` : ''}`,
+    markYes: '有',
+    markNo: '無',
+    none: '資料に記載のある項目はありません。',
+    source: '出典',
+  },
+
   inquiry: {
     title: '照会の記録',
     link: '自治体への照会の記録を見る',

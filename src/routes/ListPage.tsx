@@ -4,6 +4,7 @@ import { Status } from '../components/Layout.tsx'
 import { StateLabel } from '../components/StateMark.tsx'
 import { fmt, ja } from '../i18n/ja.ts'
 import { useEvacueeEstimates, useMuni, useMuniIndex } from '../lib/data.ts'
+import { MuniStockpileSection } from '../components/Stockpile.tsx'
 import { MuniInquirySection } from './InquiryPage.tsx'
 
 /** 地方区分（都道府県コード） */
@@ -138,6 +139,7 @@ export function ListFacilitiesPage() {
         <>
           <p className="m-0 mt-2 text-base text-ink-soft">{fmt.format(d.facilities.length)} {ja.unitFacilities}</p>
           <EvacueeEstimate prefCode={prefCode} muniKey={muniKey} />
+          <MuniStockpileSection block={d.stockpile} shelters={d.facilities.filter((f) => f.designations.shelter.length > 0).length} />
           <MuniInquirySection muniKey={muniKey} />
           {overlapCount > 0 && (
             <div className="mt-2 rounded border border-line bg-surface p-3 text-base">

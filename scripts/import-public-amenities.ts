@@ -62,6 +62,13 @@ const SOURCES = {
     url: 'https://www.city.setagaya.lg.jp/documents/5560/1811017-1.pdf',
     as_of: '2018-11-01',
   },
+  tokushima_stockpile: {
+    file: 'tokushima_stockpile_20260401',
+    title: '避難所等の備蓄物資・資機材保管リスト（令和8年4月1日時点）',
+    publisher: '徳島県・県内市町村',
+    url: 'https://www.pref.tokushima.lg.jp/anshin/bousai/taisaku/sonota/7313032/',
+    as_of: '2026-04-01',
+  },
   machida_gym_aircon: {
     file: 'machida_gym_aircon_report_2022.pdf',
     title: '体育館空調の設置効果について（報告）（市立小中学校全校の体育館に冷暖房の空調設備を設置）',
@@ -177,6 +184,64 @@ applyMuniStatement('setagaya_gym_aircon', '13112',
   '世田谷区は区立小中学校全 90 校の体育館に冷暖房機能を持つ空調機を設置する方針（2018 年）。文部科学省の調査（2026-05-01）で区の体育館等の冷房設置率が 100% のため、設置済みとした。主要な滞在スペースを体育館とみなした', true)
 applyMuniStatement('machida_gym_aircon', '13209',
   '町田市は 2020〜2021 年度に市立小中学校全校の体育館に、壁輻射パネルと壁掛けエアコンによる冷暖房の空調を設置し、冬季は室温 19℃以下で運転している（2022 年の報告）。主要な滞在スペースを体育館とみなした', true)
+
+// 4. 徳島県の避難所ごとの備蓄の表（data/public/stockpile.json。npm run data:stockpile で作る。DATA_NOTES 19）
+//    施設ごとの事実なので、文部科学省の率から決めた値より優先する（上書きした数を report に残す）
+{
+  const stock = JSON.parse(readFileSync(join(OUT_DIR, 'stockpile.json'), 'utf8')) as {
+    facilities: Record<string, { list_name: string; list_capacity: number | null; values: Record<string, number | string> }[]>
+  }
+  const n = (es: { values: Record<string, number | string> }[], ...keys: string[]) =>
+    es.reduce((a, e) => a + keys.reduce((b, k) => b + (typeof e.values[k] === 'number' ? (e.values[k] as number) : 0), 0), 0)
+  const names = (es: { list_name: string }[]) => es.map((e) => e.list_name).join('・')
+  const r = { aircon_none: 0, aircon_present: 0, aircon_overrode_mext: 0, aircon_skipped_conflict: 0, heating_spot_only: 0, toilet_water_outage: 0, stockpile_onsite: 0, bed_sufficient: 0, bed_partial: 0, bed_no_capacity: 0 }
+  for (const [id, es] of Object.entries(stock.facilities)) {
+    // 冷房：「エアコン設備（固定式）」の〇・✕。行が複数あれば体育館の行、なければ全行が同じときだけ
+    const gym = es.filter((e) => /体育館/.test(e.list_name) && e.values.aircon_fixed)
+    const marks = [...new Set((gym.length ? gym : es).map((e) => e.values.aircon_fixed).filter(Boolean))]
+    if (marks.length === 1) {
+      const mark = marks[0]
+      const prev = values.get(id)?.aircon_main_hall
+      if (prev?.source === 'mext_gym_aircon') r.aircon_overrode_mext++
+      if (mark === '✕') {
+        set(id, 'aircon_main_hall', { value: 'none', source: 'tokushima_stockpile', how: `徳島県の避難所等の備蓄物資・資機材保管リストで、この避難所（一覧の名称：${names(gym.length ? gym : es)}）のエアコン設備（固定式）が「無」` })
+        r.aircon_none++
+      } else if (mark === '〇') {
+        set(id, 'aircon_main_hall', { value: 'present', source: 'tokushima_stockpile', how: `徳島県の避難所等の備蓄物資・資機材保管リストで、この避難所（一覧の名称：${names(gym.length ? gym : es)}）のエアコン設備（固定式）が「有」。どの部屋にあるか（主要な滞在スペースか）は資料に書かれていない` })
+        r.aircon_present++
+      }
+    } else if (marks.length > 1) r.aircon_skipped_conflict++
+    // 暖房：持ち運べる暖房機器があれば「スポット暖房のみ」。備え付けの暖房は資料にないので、0 でも「なし」にはしない
+    const heaters = n(es, 'heater_portable')
+    if (heaters > 0 && !values.get(id)?.heating_main_hall) {
+      set(id, 'heating_main_hall', { value: 'spot_only', source: 'tokushima_stockpile', how: `徳島県の保管リストで、この避難所（${names(es)}）に持ち運べる暖房機器が ${heaters} 台。備え付けの暖房の有無は資料に書かれていない` })
+      r.heating_spot_only++
+    }
+    // 断水時のトイレ：携帯・簡易・仮設・組立・マンホールトイレのどれかがあれば「あり」。なければ未確認のまま（井戸・プールの水などは資料にない）
+    const toilets = n(es, 'toilet_portable', 'toilet_simple', 'toilet_temporary', 'toilet_assembly', 'toilet_manhole')
+    if (toilets > 0) {
+      set(id, 'toilet_water_outage', { value: true, source: 'tokushima_stockpile', how: `徳島県の保管リストで、この避難所（${names(es)}）に携帯・簡易・仮設・組立・マンホールトイレの備蓄がある` })
+      r.toilet_water_outage++
+    }
+    // 敷地内の備蓄：この避難所に置かれている物資・資機材が 1 つでもあれば「あり」（保管場所ごとの一覧のため）
+    if (es.some((e) => Object.entries(e.values).some(([k, v]) => k !== 'aircon_fixed' && typeof v === 'number' && v > 0)) && !values.get(id)?.stockpile_onsite) {
+      set(id, 'stockpile_onsite', { value: true, source: 'tokushima_stockpile', how: `徳島県の保管リスト（保管場所ごとの一覧）に、この避難所（${names(es)}）に置かれている物資・資機材が載っている` })
+      r.stockpile_onsite++
+    }
+    // 簡易ベッド：段ボールベッドと簡易ベッドの数を、同じ一覧の想定収容人数と比べる（1 人 1 台）。人数がない行があれば判定しない
+    const beds = n(es, 'cardboard_bed', 'simple_bed')
+    if (beds > 0) {
+      if (es.some((e) => e.list_capacity == null)) r.bed_no_capacity++
+      else {
+        const cap = es.reduce((a, e) => a + (e.list_capacity ?? 0), 0)
+        const v = beds >= cap ? 'sufficient' : 'partial'
+        set(id, 'bed_kit', { value: v, source: 'tokushima_stockpile', how: `徳島県の保管リストで、この避難所（${names(es)}）の段ボールベッド・簡易ベッドは ${beds}、同じ一覧の想定収容人数は ${cap} 人（1 人 1 台で比べた）` })
+        if (v === 'sufficient') r.bed_sufficient++; else r.bed_partial++
+      }
+    }
+  }
+  report.tokushima_stockpile = r
+}
 
 // 書き出し。施設 ID の順に並べ、差分を読みやすくする
 const sources: Record<string, AmenitySource & { file: string }> = {}

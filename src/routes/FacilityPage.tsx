@@ -13,6 +13,7 @@ import { amenityByKey, amenityCategories, formatValue, impacts, seasonLabel } fr
 import { useFacilityHistory, useLiveAmenities } from '../lib/community.ts'
 import { supabase } from '../lib/supabase.ts'
 import { useMeta, useMuni } from '../lib/data.ts'
+import { FacilityStockpileSection, MuniStockpileSection } from '../components/Stockpile.tsx'
 
 const AXES = ['hazard', 'capacity', 'logistics'] as const
 
@@ -59,6 +60,8 @@ export function FacilityPage() {
       </header>
 
       <ImpactSection facility={facility} texts={muni.data?.breakdown_texts} />
+      <FacilityStockpileSection blocks={facility.stockpile} />
+      <MuniStockpileSection block={muni.data.stockpile} collapsed />
 
       <MapView
         mode="single"

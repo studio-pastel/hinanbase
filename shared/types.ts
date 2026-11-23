@@ -158,7 +158,31 @@ export interface Facility {
   /** 施設の地点の想定浸水深などの階級（ハザードマップポータルサイトのタイルの色から読む。DATA_NOTES 14.5）。未取得なら項目自体がない */
   depth?: PointDepth
   amenities: Record<string, AmenityValue>
+  /** この避難所に置かれている備蓄の数（県などの資料。一覧の 1 行が 1 つ。体育館と校舎のように 2 行あれば 2 つ）。資料がなければ項目自体がない */
+  stockpile?: StockpileBlock[]
   scores: Scores
+}
+
+/** 備蓄の数の出典（DATA_NOTES 18・19） */
+export interface StockpileSource {
+  title: string
+  publisher: string
+  url: string
+  as_of: string
+  /** muni：市区町村の合計／facility：その避難所に置かれている数 */
+  scope: 'muni' | 'facility'
+  note: string
+}
+
+/** 備蓄の数（config/stockpile-defs.json の項目キー → 数。エアコン設備（備え付け）は「〇」「✕」）。空欄の項目は持たない */
+export interface StockpileBlock {
+  source: StockpileSource
+  values: Record<string, number | string>
+  /** 項目キー → 資料の単位 */
+  units: Record<string, string>
+  /** 避難所ごとの表のときの、一覧の名称と想定収容人数 */
+  list_name?: string
+  list_capacity?: number | null
 }
 
 export interface MuniFile {
@@ -169,6 +193,8 @@ export interface MuniFile {
   generated_at: string
   /** 算出根拠（scores.breakdown）の中で { $t: 番号 } として参照される文章の表。多くの施設で同じになる式・注記・出典を 1 回だけ持つ */
   breakdown_texts?: unknown[]
+  /** 市区町村全体の備蓄の数（内閣府の調査）。資料にない市区町村は項目自体がない */
+  stockpile?: StockpileBlock
   facilities: Facility[]
 }
 
