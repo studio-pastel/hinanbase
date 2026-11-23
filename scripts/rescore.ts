@@ -16,10 +16,22 @@ const muniDir = join(BUILD_DIR, 'facilities', 'by-muni')
 mkdirSync(muniDir, { recursive: true })
 mkdirSync(INTERMEDIATE_DIR, { recursive: true })
 
+// r2.dev の公開 URL は回数制限があり、まとめて取ると 429 が返る（2026-11-22・23 の日次ビルドが失敗）。
+// 429・5xx・通信の失敗は、待つ時間を倍にしながら取り直す。それでも取れなければ止める（欠けたまま進めない）
 async function getJson<T>(url: string, headers: Record<string, string> = {}): Promise<T> {
-  const res = await fetch(url, { headers })
-  if (!res.ok) throw new Error(`${url}: ${res.status}`)
-  return (await res.json()) as T
+  let last = ''
+  for (let attempt = 0; attempt < 8; attempt++) {
+    try {
+      const res = await fetch(url, { headers })
+      if (res.ok) return (await res.json()) as T
+      last = String(res.status)
+      if (res.status !== 429 && res.status < 500) break
+    } catch (e) {
+      last = String(e)
+    }
+    await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt + Math.random() * 1000))
+  }
+  throw new Error(`${url}: ${last}`)
 }
 
 // 1) 市区町村 JSON。手元になければ公開済みのものを取得する
@@ -31,7 +43,7 @@ if (readdirSync(muniDir).length === 0) {
   writeFileSync(join(BUILD_DIR, 'meta.json'), JSON.stringify(await getJson(`${base}/meta.json`), null, 1))
   const keys = index.prefs.flatMap((p) => p.munis.map((m) => m.key))
   const queue = [...keys]
-  await Promise.all(Array.from({ length: 16 }, async () => {
+  await Promise.all(Array.from({ length: 6 }, async () => {
     for (let k = queue.pop(); k; k = queue.pop()) {
       writeFileSync(join(muniDir, `${k}.json`), JSON.stringify(await getJson(`${base}/facilities/by-muni/${k}.json`)))
     }
