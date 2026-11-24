@@ -161,6 +161,25 @@ const facilityStockpile = (id: string): StockpileBlock[] | undefined => {
   return es ? es.map((e) => ({ ...stockSource('tokushima'), values: e.values, list_name: e.list_name, list_capacity: e.list_capacity })) : undefined
 }
 
+// 2d) その後の毎年の公表（data/public/stockpile-yearly.json、DATA_NOTES 20）。都道府県がまとめた市区町村ごとの数
+const STOCKPILE_YEARLY = join(import.meta.dirname, '..', 'data', 'public', 'stockpile-yearly.json')
+const yearly = existsSync(STOCKPILE_YEARLY)
+  ? (JSON.parse(readFileSync(STOCKPILE_YEARLY, 'utf8')) as {
+    sources: Record<string, StockpileSource & { units: Record<string, string>; file?: string }>
+    munis: Record<string, Record<string, Record<string, number>>>
+  })
+  : null
+const muniStockpileYearly = (key: string): StockpileBlock[] | undefined => {
+  const bySource = yearly?.munis[key]
+  if (!bySource) return undefined
+  const blocks = Object.entries(bySource).map(([id, values]) => {
+    const { units, file: _file, ...source } = yearly!.sources[id]!
+    void _file
+    return { source, units, values }
+  })
+  return blocks.sort((a, b) => a.source.as_of.localeCompare(b.source.as_of))
+}
+
 // 3) 設備値を載せて算出し直す。内容が変わった市区町村だけ書き出す
 const now = new Date().toISOString()
 const ndjson: string[] = []
@@ -185,6 +204,11 @@ for (const file of readdirSync(muniDir).sort()) {
   const ms0 = muniStockpile(muni.muni_key)
   if (JSON.stringify(muni.stockpile) !== JSON.stringify(ms0)) {
     if (ms0) muni.stockpile = ms0; else delete muni.stockpile
+    changed = true
+  }
+  const my0 = muniStockpileYearly(muni.muni_key)
+  if (JSON.stringify(muni.stockpile_yearly) !== JSON.stringify(my0)) {
+    if (my0) muni.stockpile_yearly = my0; else delete muni.stockpile_yearly
     changed = true
   }
   // 多くの施設で同じになる文章は、市区町村ごとの表に 1 回だけ置く（データを小さくするため。内容は落とさない）

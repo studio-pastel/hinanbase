@@ -61,7 +61,7 @@ export function FacilityPage() {
 
       <ImpactSection facility={facility} texts={muni.data?.breakdown_texts} />
       <FacilityStockpileSection blocks={facility.stockpile} />
-      <MuniStockpileSection block={muni.data.stockpile} collapsed />
+      <MuniStockpileSection block={muni.data.stockpile} yearly={muni.data.stockpile_yearly} collapsed />
 
       <MapView
         mode="single"

@@ -28,7 +28,7 @@ const SOURCES: Record<'cao' | 'tokushima', StockpileSource & { file: string }> =
     url: 'https://www.bousai.go.jp/taisaku/hinanjo/pdf/r6_1101.pdf',
     as_of: '2024-11-01',
     scope: 'muni',
-    note: '市区町村が備蓄している数の合計。どの避難所に置かれているかは分からない。協定で調達できる分と、建物に備え付けの設備（エアコンなど）は含まない。空欄は資料に記載がないもの',
+    note: '市区町村が備蓄している数の合計。どの避難所に置かれているかは分からない。協定で調達できる分と、建物に備え付けの設備（エアコンなど）は含まない。空欄は資料に記載がないもの。静岡県焼津市の毛布・大人用紙おむつ・仮設トイレは、県が公表した訂正の値',
   },
   tokushima: {
     file: 'tokushima_stockpile_20260401',
@@ -110,7 +110,23 @@ const caoUnits: Record<string, string> = {}
       muniValues[key] = v
     }
   }
-  report.cao = { rows, munis: Object.keys(muniValues).length, unmatched, duplicated_same_values: sameDup, duplicated_different_values: dup, problems }
+  // 都道府県が公表した訂正（DATA_NOTES 20）。訂正前の値（空欄）と一致するときだけ直し、report に残す
+  //   静岡県「令和7年1月9日内閣府公表の…県内分調査結果の訂正について」（2025-01-22）：焼津市の 3 品目が空欄になっていた
+  //   https://www.pref.shizuoka.jp/bosaikinkyu/sonae/1040803/1068848.html
+  const corrections: { key: string; name: string; item: string; before: number | null; after: number }[] = [
+    { key: '22212', name: '静岡県焼津市', item: 'blanket', before: null, after: 14288 },
+    { key: '22212', name: '静岡県焼津市', item: 'diaper_adult', before: null, after: 670 },
+    { key: '22212', name: '静岡県焼津市', item: 'toilet_temporary', before: null, after: 284 },
+  ]
+  const applied: string[] = []
+  for (const c of corrections) {
+    const v = muniValues[c.key]
+    if (!v) { problems.push(`訂正：${c.name} の行がない`); continue }
+    if ((v[c.item] ?? null) !== c.before) { problems.push(`訂正：${c.name} ${c.item} が訂正前の値（${c.before ?? '空欄'}）と違う（${v[c.item]}）`); continue }
+    v[c.item] = c.after
+    applied.push(`${c.name} ${c.item}: ${c.before ?? '空欄'} → ${c.after}`)
+  }
+  report.cao = { rows, munis: Object.keys(muniValues).length, unmatched, duplicated_same_values: sameDup, duplicated_different_values: dup, corrections: applied, problems }
 }
 
 // 2. 徳島県の避難所ごとの表

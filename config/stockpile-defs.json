@@ -1,6 +1,6 @@
 {
  "version": 1,
- "note": "備蓄の数の項目（DATA_NOTES 18・19）。画面はこの定義から作る。cao は内閣府の調査の列の名前、tokushima は徳島県の表の列の見出しに当てる正規表現（NFKC で揃えてから当てる）。単位は資料ごとに違うので、データの側に持つ",
+ "note": "備蓄の数の項目（DATA_NOTES 18・19）。画面はこの定義から作る。cao は内閣府の調査の列の名前、tokushima は徳島県の表の列の見出しに当てる正規表現（NFKC で揃えてから当てる）。単位は資料ごとに違うので、データの側に持つ。muni は都道府県がまとめて毎年公表する表（国のシステム B-PLo の品目名など）で、内閣府の調査と同じ品目を指す別名（DATA_NOTES 20）",
  "groups": [
   { "key": "heat", "label_ja": "暖房" },
   { "key": "cool", "label_ja": "冷房・送風" },
@@ -27,7 +27,7 @@
   { "key": "toilet_simple", "group": "toilet", "label_ja": "簡易トイレ", "cao": "簡易トイレ", "tokushima": "簡易トイレ" },
   { "key": "toilet_temporary", "group": "toilet", "label_ja": "仮設トイレ", "cao": "仮設トイレ", "tokushima": "仮設トイレ$" },
   { "key": "toilet_assembly", "group": "toilet", "label_ja": "組立トイレ（便槽型）", "cao": "組立トイレ（便槽型）", "tokushima": "組立トイレ" },
-  { "key": "toilet_manhole", "group": "toilet", "label_ja": "マンホールトイレ", "cao": "マンホールトイレ", "tokushima": "マンホール" },
+  { "key": "toilet_manhole", "group": "toilet", "label_ja": "マンホールトイレ", "cao": "マンホールトイレ", "tokushima": "マンホール", "muni": ["仮設トイレ(マンホールトイレ)"] },
   { "key": "toilet_ostomate", "group": "toilet", "label_ja": "オストメイト対応トイレ", "tokushima": "オストメイト" },
   { "key": "toilet_car", "group": "toilet", "label_ja": "トイレカー", "cao": "トイレカー" },
   { "key": "toilet_trailer", "group": "toilet", "label_ja": "トイレトレーラー", "cao": "トイレトレーラー" },
@@ -56,9 +56,9 @@
   { "key": "water_purifier", "group": "water", "label_ja": "浄水装置", "tokushima": "浄水" },
   { "key": "bath", "group": "water", "label_ja": "入浴設備（WOTA など）", "tokushima": "入浴設備" },
 
-  { "key": "sanitary", "group": "care", "label_ja": "生理用品", "cao": "生理用品", "tokushima": "生理用ナプキン" },
-  { "key": "diaper_adult", "group": "care", "label_ja": "大人用紙おむつ", "cao": "大人用紙おむつ", "tokushima": "大人用おむつ" },
-  { "key": "diaper_child", "group": "care", "label_ja": "子ども用紙おむつ", "cao": "子供用紙おむつ", "tokushima": "子供用おむつ" },
+  { "key": "sanitary", "group": "care", "label_ja": "生理用品", "cao": "生理用品", "tokushima": "生理用ナプキン", "muni": ["生理用ナプキン"] },
+  { "key": "diaper_adult", "group": "care", "label_ja": "大人用紙おむつ", "cao": "大人用紙おむつ", "tokushima": "大人用おむつ", "muni": ["大人用おむつ"] },
+  { "key": "diaper_child", "group": "care", "label_ja": "子ども用紙おむつ", "cao": "子供用紙おむつ", "tokushima": "子供用おむつ", "muni": ["子供用おむつ", "子ども用おむつ"] },
   { "key": "baby_milk", "group": "care", "label_ja": "乳幼児用ミルク", "cao": "乳幼児粉ミルク・乳幼児液体ミルク", "tokushima": "乳児用ミルク" },
   { "key": "care_food", "group": "care", "label_ja": "介護食品", "tokushima": "介護食品" }
  ]

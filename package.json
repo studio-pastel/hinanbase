@@ -28,6 +28,7 @@
     "data:points": "tsx scripts/build-points.ts",
     "data:depth": "tsx scripts/build-depth.ts",
     "data:stockpile": "tsx scripts/import-stockpile.ts",
+    "data:stockpile-yearly": "tsx scripts/import-stockpile-yearly.ts",
     "data:public-amenities": "tsx scripts/import-public-amenities.ts",
     "data:inquiry-targets": "tsx scripts/build-inquiry-targets.ts",
     "inquiry": "tsx scripts/inquiry.ts"

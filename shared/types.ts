@@ -172,6 +172,8 @@ export interface StockpileSource {
   /** muni：市区町村の合計／facility：その避難所に置かれている数 */
   scope: 'muni' | 'facility'
   note: string
+  /** 資料が載っているページ（url が資料そのものを指すとき） */
+  page?: string
 }
 
 /** 備蓄の数（config/stockpile-defs.json の項目キー → 数。エアコン設備（備え付け）は「〇」「✕」）。空欄の項目は持たない */
@@ -195,6 +197,8 @@ export interface MuniFile {
   breakdown_texts?: unknown[]
   /** 市区町村全体の備蓄の数（内閣府の調査）。資料にない市区町村は項目自体がない */
   stockpile?: StockpileBlock
+  /** その後に都道府県が公表した、市区町村全体の備蓄の数（毎年の公表、DATA_NOTES 20）。古い順。内閣府の調査と同じ品目・単位の列だけ */
+  stockpile_yearly?: StockpileBlock[]
   facilities: Facility[]
 }
 
